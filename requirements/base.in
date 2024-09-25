@@ -1,0 +1,6 @@
+tqdm
+python-dotenv
+aleph_alpha_client
+gputil
+protobuf==3.20.3
+ray[rllib]

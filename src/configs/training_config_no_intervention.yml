@@ -1,0 +1,21 @@
+name: "AWS_NO_INTERVENTION"
+env_parameters:
+  training: 1
+  human_intervention: 0
+  task: 0
+  ext_fire_reward: 1000
+  prep_tree_reward: 0.1
+  water_pickup_reward: 0.1
+  fire_out_reward: 0
+  crash_reward: -100
+  fire_close_to_city_reward: 0
+no_graphics: True
+intervention_type: "none" # "none", "auto", "llm", "human"
+
+lr: 0.005
+lambda_: 0.95
+gamma: 0.99
+sgd_minibatch_size: 900
+train_batch_size: 9000
+num_sgd_iter: 3
+clip_param: 0.2
