@@ -1,6 +1,7 @@
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
-from pathlib import Path
-import datetime
+
+CYAN = "\033[96m"
+RESET = "\033[0m"
 
 
 class CustomMetricsCallback(DefaultCallbacks):
@@ -50,8 +51,8 @@ class CustomMetricsCallback(DefaultCallbacks):
                     self.all_cumulative_rewards
                 )
                 print(
-                    f"steps: {self.total_steps} - mean reward over last 9000 steps: {avg_reward:0.3f} "
-                    f"- mean reward over all steps: {overall_mean_reward:0.3f}"
+                    f"{CYAN}steps: {self.total_steps} - mean reward over last 9000 steps: {avg_reward:0.3f} "
+                    f"- mean reward over all steps: {overall_mean_reward:0.3f}{RESET}"
                 )
 
             # Reset the cumulative rewards and step count for the next interval

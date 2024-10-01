@@ -36,6 +36,38 @@ AGENT_IDS = [
 ]
 
 
+STRATEGY_PROMPT = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
+Instruction:
+Agent 'Agent?team=0_0', Agent 'Agent?team=0_1' and Agent 'Agent?team=0_2' each control an aeroplane to extinguish or prepare trees for incoming fire. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
+| top left | top center | top right |
+| center left | center center | center right |
+| bottom left | bottom center | bottom right |
+The following are the positions of all agents and fire locations:
+{AGENTS}
+{FIRES}
+A basic strategy is to send all agents directly to the fire or surrounding areas. Please use locations combinations HORIZONTAL VERTICAL and correct agent names in your description.
+Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+"""
+
+NL_INTERVENTION_PROMPT = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+You are controlling 3 agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
+Instruction:
+Locations:
+HORIZONTAL locations: ['left', 'right', 'center']
+VERTICAL locations: ['bottom', 'top', 'center']
+Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
+Agent 'Agent?team=0_0' go to y x
+Use one line per agent and be precise with the template. Use the correct agent names: 'Agent?team=0_0', 'Agent?team=0_1', 'Agent?team=0_2'
+Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+"""
+
+# Pahria: Agent 'Agent?team=0_0' go to bottom right
+
+# -1, 1 | 0, 1 | 1, 1
+# -1, 0 | 0, 0 | 1, 0
+# -1, -1| 0, -1| 1, -1
+
+
 class InterventionInterpreter(object):
     """
     OBSERVCATIONS:
@@ -84,15 +116,19 @@ class InterventionInterpreter(object):
         self.all_agents_movement_dir = {}
         self.observation_scale_factor = 750
 
+        self.output_dir = self.get_unique_output_dir(
+            DATA_PATH / f"event_interpreter_data_{self.name}"
+        )
+
         # self.asymmetric_embeddings = [
         #     self.embed(text, SemanticRepresentation.Document) for text in AGENT_IDS
         # ]
 
-    def aleph_alpha_api_worker(self, prompt):
+    def aleph_alpha_api_worker(self, prompt, maximum_tokens=60):
         # AlephAlpha
         params = {
             "prompt": Prompt.from_text(prompt),
-            "maximum_tokens": 52 if self.intervention_type == "auto" else 96,
+            "maximum_tokens": maximum_tokens,
         }
 
         request = CompletionRequest(**params)
@@ -116,94 +152,31 @@ class InterventionInterpreter(object):
 
     def llm_intervention(self, observations):
 
-        # v = [-0.11725578, -0.8425961, 0., 0., 1., -1., -1., 0., 0.]
-
-        agent_ids = list(observations.keys())
-
-        descriptions = []
-        for i, agent_id in enumerate(agent_ids):
-            descriptions.append(
-                f"""For {agent_id}:
-            Position x: {round(observations[agent_id][1][0], 3)},
-            Position y: {round(observations[agent_id][1][1], 3)},
-            Direction x: {round(observations[agent_id][1][2], 3)},
-            Direction y: {round(observations[agent_id][1][3], 3)},
-            Holding water: {'true' if observations[agent_id][1][4] == 1 else 'false'},
-            Closest tree location x: {round(observations[agent_id][1][5], 3)},
-            Closest tree location y: {round(observations[agent_id][1][6], 3)},
-            Closest tree state: {'burning' if observations[agent_id][1][7] == 2 else 'not burning'}"""
-            )
-
-        observations_with_descriptions = "\n".join(descriptions)
-
         ### STRATEGY ###
 
-        intervention_prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are controlling 3 agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>        
-        ### Instruction:
-        Agents: agent 1, agent 2 and agent 3 each control an aeroplane which is able to pick up water, fly to burning forest and drop water to extinguish or prepare trees for incoming fire. The following are the observations of all agents. Your task is to instruct the agents to go to specific locations on the map to ultimately extinguish all fire. The current observations are:
-        {observations_with_descriptions}
-        Where would you send the agents?        
-        ### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        intervention_prompt = STRATEGY_PROMPT.format(
+            AGENTS=self.all_agents_location_info, FIRES=self.all_agents_fire_info
+        )
 
-        response = self.aleph_alpha_api_worker(intervention_prompt)
+        strategy = self.aleph_alpha_api_worker(intervention_prompt, 196)
 
         ### INTERVENTION ###
 
-        interpreter_prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are controlling 3 agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
-        ### Instruction:        
-        Locations:
-        HORIZONTAL locations: ["left", "right", "center"]
-        VERTICAL locations: ["bottom", "top", "center"]
-        Summarize this user input: "{response}". Use this task template: <agent name> go to <VERTICAL location> <HORIZONTAL location>
-        Use one line per agent and be precise with the template.        
-        ### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        interpreter_prompt = NL_INTERVENTION_PROMPT.format(STRATEGY=strategy)
 
         return interpreter_prompt
 
     def rule_based_intervention(self):
+        few_shot = """<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\nAgent 'Agent?team=0_0' is in the bottom center, Agent 'Agent?team=0_1' is in the center right, Agent 'Agent?team=0_2' is in the bottom center. 1 fire(s): Fire 0 is in the center center.\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nAgent 'Agent?team=0_0' go to center center\nAgent 'Agent?team=0_1' go to center center\nAgent 'Agent?team=0_2' go to center center<|eot_id|>"""
 
-        # 1 to 3 shot examples
-        shot_1 = """<|start_header_id|>user<|end_header_id|>        
-        ### Instruction:
-        HORIZONTAL locations: ['left', 'right', 'center']
-        VERTICAL locations: ['bottom', 'top', 'center']
-        Instruct agent(s) to go to their closest fire.
-        Reply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>
-        ### Input:
-        Agent 'Agent?team=0_0' is in the top center, Agent 'Agent?team=0_1' is in the center center, Agent 'Agent?team=0_2' is in the bottom left. 3 fire(s): Fire 0 is in the bottom center, Fire 1 is in the center left, Fire 2 is in the bottom right.
-        ### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-        Agent 'Agent?team=0_0' go to center left
-        Agent 'Agent?team=0_1' go to bottom right
-        Agent 'Agent?team=0_2' go to bottom center<|eot_id|>"""
-
-        shot_2 = """<|start_header_id|>user<|end_header_id|>        
-        ### Instruction:
-        HORIZONTAL locations: ['left', 'right', 'center']
-        VERTICAL locations: ['bottom', 'top', 'center']
-        Instruct agent(s) to go to their closest fire.
-        Reply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>
-        ### Input:
-        Agent 'Agent?team=0_0' is in the center center, Agent 'Agent?team=0_1' is in the bottom center, Agent 'Agent?team=0_2' is in the bottom right. 2 fire(s): Fire 0 is in the top center, Fire 1 is in the bottom left.
-        ### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-        Agent 'Agent?team=0_0' go to top center
-        Agent 'Agent?team=0_1' go to bottom left
-        Agent 'Agent?team=0_2' go to bottom left<|eot_id|>"""
-
-        shot_3 = """<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\n### Input:\nAgent 'Agent?team=0_0' is in the bottom center, Agent 'Agent?team=0_1' is in the center right, Agent 'Agent?team=0_2' is in the bottom center. 1 fire(s): Fire 0 is in the center center.\n### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nAgent 'Agent?team=0_0' go to center center\nAgent 'Agent?team=0_1' go to center center\nAgent 'Agent?team=0_2' go to center center<|eot_id|>"""
-
-        shot_3 = """<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\nAgent 'Agent?team=0_0' is in the bottom center, Agent 'Agent?team=0_1' is in the center right, Agent 'Agent?team=0_2' is in the bottom center. 1 fire(s): Fire 0 is in the center center.\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nAgent 'Agent?team=0_0' go to center center\nAgent 'Agent?team=0_1' go to center center\nAgent 'Agent?team=0_2' go to center center<|eot_id|>"""
-
-        # 0 shot
-        prompt = f"<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\n{self.all_agents_location_info} {self.all_agents_fire_info}\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
-
-        # prompt = f"<|start_header_id|>system<|end_header_id|>\nInstruct agent(s) to go to their closest fire\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nAvailable agents: Agent?team=0_0, Agent?team=0_1, Agent?team=0_2\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\n<|eot_id|><|start_header_id|>user<|end_header_id|>\nAgent location info:\n{self.all_agents_location_info}\nFire info:\n{self.all_agents_fire_info}\nResponse:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+        sample = f"<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\n{self.all_agents_location_info} {self.all_agents_fire_info}\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
 
         if self.shot == "few":
-            prompt = shot_1 + shot_2 + shot_3 + prompt
+            prompt = "<|begin_of_text|>" + few_shot + sample
+        else:
+            prompt = "<|begin_of_text|>" + sample
 
-        return "<|begin_of_text|>" + shot_3 + prompt
+        return prompt
 
     def parse_task_interpretation(self, response, intervention_type):
         if intervention_type == "human":
@@ -264,6 +237,7 @@ class InterventionInterpreter(object):
             vertical_location = ""
             for word in words:
                 clean_word = re.sub(r"[^a-zA-Z0-9\s]", "", word)
+                clean_word = clean_word.lower()
                 if clean_word in VERTICAL:
                     vertical_location = clean_word
                     words.remove(word)
@@ -272,6 +246,7 @@ class InterventionInterpreter(object):
             horizontal_location = ""
             for word in words:
                 clean_word = re.sub(r"[^a-zA-Z0-9\s]", "", word)
+                clean_word = clean_word.lower()
                 if clean_word in HORIZONTAL:
                     horizontal_location = clean_word
                     words.remove(word)
@@ -298,6 +273,17 @@ class InterventionInterpreter(object):
 
         return tasks
 
+    def get_unique_output_dir(self, base_dir):
+        """
+        Returns a unique directory name by adding a numerical suffix if the base_dir already exists.
+        """
+        if not os.path.exists(base_dir):
+            return base_dir
+        suffix = 1
+        while os.path.exists(f"{base_dir}_{suffix}"):
+            suffix += 1
+        return f"{base_dir}_{suffix}.json"
+
     def run_LLM_interpreter(self, prompt):
 
         completion = self.aleph_alpha_api_worker(prompt)
@@ -314,12 +300,13 @@ class InterventionInterpreter(object):
             os.makedirs(DATA_PATH, exist_ok=True)
             # Writing JSON data
             with open(
-                DATA_PATH / f"event_interpreter_data_{self.name}.json", "a"
+                self.output_dir,
+                "a",
             ) as file:
                 file.write(json.dumps(data) + "\n")
-            print(
-                f"File 'event_interpreter_data_{self.name}.json' has been created in the directory: {DATA_PATH}"
-            )
+            # print(
+            #     f"File 'event_interpreter_data_{self.name}.json' has been created in the directory: {DATA_PATH}"
+            # )
         except Exception as e:
             print(f"An error occurred: {e}")
 

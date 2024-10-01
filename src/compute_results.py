@@ -21,8 +21,8 @@ test_results = {
         "results_path": "C:/Users/pdsie/Documents/human_intervention_marl/results/test/no_intervention",
         "metrics": defaultdict(list),
     },
-    "rule_based_llama_3_8b_instruct": {
-        "results_path": "C:/Users/pdsie/Documents/human_intervention_marl/results/test/rule_based_llama_3_8b_instruct",
+    "rule_based_llama_3.1_8b_instruct": {
+        "results_path": "C:/Users/pdsie/Documents/human_intervention_marl/results/test/rule_based_llama_3.1_8b_instruct",
         "metrics": defaultdict(list),
     },
     "rule_based_pharia_1_7b_control_aligned": {

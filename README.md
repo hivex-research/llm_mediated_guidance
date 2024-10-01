@@ -1,23 +1,25 @@
 <div align="center">
-  <img src="docs/images/hi_marl_thumbnail.png"
+  <img src="docs/images/llm_mediated_guidance_thumb.png"
       style="border-radius:20px"
       alt="human intervention marl header image"/>
 </div>
 
-# HIVEX
+<br>
 
-_Human and LLM-Based Intervention for Multi-Agent Reinforcement Learning Framework._
+# LLM-Mediated Guidance for MARL Systems
+
+_Rule-Based and Natural Language Interventions for Multi-Agent Reinforcement Learning_
 
 ## About
 
-The motivation of this work is to demonstrate how human experts and LLMs could be utilize to guide Reinforcement Learning agents in Multi-Agent Systems to improve traininf efficientcy and performance.
+The motivation of this work is to demonstrate how LLM and human expert guidance and an LLM-Mediator could be utilize to guide Reinforcement Learning agents in Multi-Agent Systems to improve traininf efficientcy and performance.
 
 ## ⚡ Quick Overview (TL;DR)
 
 - Download Aerial Wildfire Suppression [HIVEX Environments](https://github.com/hivex-research/hivex-environments)
-- Reproducing HIVEX baselines results: [Train-Test-Pipeline Script](https://github.com/hivex-research/hivex/blob/main/src/TODO/src/rain.py)
+- Reproducing LLM-Mediated Guidance for MARL Systems results: [Train-Test-Pipeline Script](https://github.com/hivex-research/llm_mediated_guidance/blob/main/src/train_test_pipeline.py)
 - [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
-- [HIVEX result plots](https://github.com/hivex-research/hivex-results) on GitHub :octocat:
+- [LLM-Mediated Guidance for MARL Systems result plots](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) on GitHub :octocat:
 
 ## 🐍 Installation using Conda Virtual Environment (Recommended)
 
@@ -27,8 +29,8 @@ as follows:
 1. Create and activate a virtual environment, e.g.:
 
    ```shell
-   conda create -n TODO python=3.9 -y
-   conda activate TODO
+   conda create -n llm_mediated_guidance python=3.9 -y
+   conda activate llm_mediated_guidance
    ```
 
 2. Install `ml-agents`:
@@ -43,11 +45,11 @@ as follows:
    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
    ```
 
-4. Install `TODO`:
+4. Install `llm_mediated_guidance`:
 
    ```shell
-   git clone git@github.com:hivex-research/TODO.git
-   cd TODO
+   git clone git@github.com:hivex-research/llm_mediated_guidance.git
+   cd llm_mediated_guidance
    pip install -e .
    ```
 
@@ -84,16 +86,15 @@ Actions:
 1       discrete Action branch with two possibilities (0 or 1) - this is dropping water if held
 ```
 
-Reward:
+Re-Shaped Rewards:
 
 ```shell
--0.01   for every time step the fire is burning (3000 time steps total)
-+10     for when fire is extinguished
+0       for when fire is extinguished
 -100    if crossed red boundary
-+5      for every extinguished burnign tree: state change burning -> wet
-+1      for every tree prepared / used as barrier to block fire from growing: state change existing -> wet
--50     for fire too close to village
-+1      for picking up water
++1000   for every extinguished burnign tree: state change burning -> wet
++0.1    for every tree prepared / used as barrier to block fire from growing: state change existing -> wet
+0       for fire too close to village
++0.1    for picking up water
 ```
 
 ## Intervention
@@ -104,6 +105,24 @@ Reward:
 
 1. Install dependencies as described in the [🐍 Installation using Conda Virtual Environment (Recommended)](#installation-using-conda-virtual-environment-recommended) section.
 
+## 🌍 Download HIVEX Environments
+
+### Download / Clone binaries locally
+
+1. Download the HIVEX Aeial Wildfire Suppression environment binaries for your operating system from the [hivex-environments](https://github.com/hivex-research/hivex-environments) repository:
+
+   ```shell
+   git clone git@github.com:hivex-research/hivex-environments.git
+   ```
+
+2. Please make sure to un-zip the environment folder.
+
+   This is what the environment paths need to look like (windows):
+
+   - `env/Hivex_AerialWildfireSuppression_win/Hivex_AerialWildfireSuppression.exe`
+
+Note: If you want to use a custom directory for your environments and use the `train_test_pipeline.py`, please adjust the directory global at the top of the script.
+
 ### Train and Test using RLLib
 
 Start train and test pipeline:
@@ -112,9 +131,9 @@ Start train and test pipeline:
 python src/train_test_pipeline.py
 ```
 
-### 📊 TODO Results
+### 📊 Results
 
-All results can be found in the [hivex-results](https://github.com/hivex-research/hivex-results/TODO) repository. Or on the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗. More details on the exact training runs can be found on [google drive](https://drive.google.com/drive/folders/TODO), which we could not upload due to space constraints.
+All results can be found in the [hivex-results](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) repository. Or on the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗. More details on the training runs can be found on [google drive](https://drive.google.com/drive/folders/1WJHPjskP96EnAJz8FI2R-rok1z5XBUW_), which we could not upload due to space constraints.
 
 ## ✨ Submit your own Results to the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
 
@@ -122,46 +141,21 @@ All results can be found in the [hivex-results](https://github.com/hivex-researc
 
 2. Run the Train and Test Pipeline with `src/train_test_pipeline.py`
 
-TODO:
-
-3. Clone the [hivex-results repository](https://github.com/hivex-research/hivex-results/tree/master).
-
-4. In your local [hivex-results repository](https://github.com/hivex-research/hivex-results/tree/master), add your results to the respective environment/train and environment/test folders. We have provided a `train_dummy_folder` and `test_dummy_folder` with results for training and testing on the Wind Farm Control environment.
-
-5. Run `find_best_models.py`
-
-This script generates data from your results.
-
-```shell
-python tools/huggingface/find_best_models.py
-```
-
-6. Run `generate_hf_yaml.py`
-
-Uncomment the environment data parser you need for your data. For example, for our dummy data, we need `generate_yaml_WFC(data['WindFarmControl'], key)`. This script takes the data generated in the previous step and turns it into folders including the checkpoint etc. of your training run and a `README.md`, which serves as the model card including important meta-data that is needed for the automatic fetching of the leaderboard of your model.
-
-```shell
-python tools/huggingface/generate_hf_yaml.py
-```
-
-7. Finally, upload the content of the generated folder(s) to Huggingface 🤗 as a new model.
-
-8. Every 24 hours, the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) is fetching new models. We will review your model as soon as possible and add it to the verified list of models as soon as possible. If you have any questions, please feel free to reach out to p.d.siedler@gmail.com.
+3. Make sure your model matches the [baseline results with task 0 and difficulty 1](https://huggingface.co/hivex-research/hivex-AWS-PPO-baseline-task-0-difficulty-1) model format. :warning: Because the LLM Guidance work has shaped the rewards, please only submit `Crash Count`,
+   `Extinguishing Trees`, `Fire Out`, `Fire too Close to City`, `Preparing Trees`, `Water Drop` and `Water Pickup` results.
 
 **Congratulations, you did it 🚀!**
 
-## 📝 Citing HIVEX
+## 📝 Citing LLM-Mediated Guidance for MARL Systems
 
 If you are using hivex in your work, please cite:
 
-# TODO:
-
 ```bibtex
-@software{siedler_hi_marl_2024,
-   author={Philipp D. Siedler},
+@software{,
+   author={},
    title={},
-   year={2024},
-   month={8},
-   url={https://github.com/hivex-research/hivex},
+   year={},
+   month={},
+   url={},
 }
 ```

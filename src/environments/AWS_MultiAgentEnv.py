@@ -26,6 +26,9 @@ from mlagents_envs.base_env import ActionTuple
 # Hivex
 from policies.hivex_ppo_torch_policy import HIVEXPPOTorchPolicy
 
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+
 
 class AerialWildFireSuppressionEnv(MultiAgentEnv):
 
@@ -46,7 +49,7 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         timeout_wait: int = 300,
         episode_horizon: int = 1000,
         side_channels: List[SideChannel] = None,
-        task_decay: int = 200,
+        task_decay: int = 300,
     ):
         super().__init__()
 
@@ -152,23 +155,28 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
 
         return occupied_agent_ids
 
-    def asign_tasks_to_agents(self, tasks):
+    def asign_tasks_to_agents(self, tasks, occupied_agent_ids):
         for agent_id, task_and_intervention_type in tasks.items():
-            if agent_id in self.all_agent_keys:
+            if agent_id in self.all_agent_keys and agent_id not in occupied_agent_ids:
                 task, intervention_type = task_and_intervention_type
+                print(
+                    f"┏ New Task-List for agent {YELLOW}{agent_id}{RESET} ---------------------------┑"
+                )
                 self.agent_policy_state[agent_id]["following"] = intervention_type
                 # go to tasked location
                 self.agent_policy_state[agent_id]["tasks"].append(task)
                 print(f"agent {agent_id} tasked with go to location: {task}")
-                if not self.agent_interpreter.holding_water(agent_id):
+                if int(self.agent_interpreter.holding_water(agent_id)) == 0:
                     # get water
                     self.agent_policy_state[agent_id]["tasks"].append("water")
                     print(f"agent {agent_id} tasked with pick up water")
                     # and go back to tasked location
                     self.agent_policy_state[agent_id]["tasks"].append(task)
                     print(f"agent {agent_id} tasked with go back to location: {task}")
-                else:
-                    print(f"agent {agent_id} already holding water")
+
+                print(
+                    f"┗-------------------------------------------------------------------┙"
+                )
 
     def step(
         self, action_dict: MultiAgentDict
@@ -197,53 +205,56 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         infos = {}
         occupied_agent_ids = self.update_occupied_agent_ids_list()
 
-        # build task list if not NN only activated
-        if self.intervention_type != "none" and len(occupied_agent_ids) < 3:
-            tasks = {}
-            # HUMAN INTERVENTION
-            if (
-                self.intervention_type == "human"
-                and self.human_intervention_channel.command != ""
-            ):
-                self.agent_interpreter.get_all_observations(obs)
-                print(f"HUMAN: {self.human_intervention_channel.command}")
-                response = self.agent_interpreter.human_intervention(
-                    self.human_intervention_channel.get_and_reset_commands()
-                )
-                human_tasks = self.agent_interpreter.parse_task_interpretation(
-                    response, self.intervention_type
-                )
-                tasks.update(human_tasks)
-            # RULE-BASED OR LLM-BASED INTERVENTION
-            else:
-                self.agent_interpreter.get_all_observations(obs)
+        if self.intervention_type != "none":
+            self.agent_interpreter.get_all_observations(obs)
 
-                # Found fire?
-                if len(self.agent_interpreter.all_agents_last_seen_fire) > 0:
+            # build task list if not NN only activated
+            if len(occupied_agent_ids) < len(self.all_agent_keys):
+                tasks = {}
+                # HUMAN INTERVENTION
+                if (
+                    self.intervention_type == "human"
+                    and self.human_intervention_channel.command != ""
+                ):
+                    print(f"HUMAN: {self.human_intervention_channel.command}")
+                    response = self.agent_interpreter.human_intervention(
+                        self.human_intervention_channel.get_and_reset_commands()
+                    )
+                    human_tasks = self.agent_interpreter.parse_task_interpretation(
+                        response, self.intervention_type
+                    )
+                    tasks.update(human_tasks)
+                # RULE-BASED OR LLM-BASED INTERVENTION
+                elif len(self.agent_interpreter.all_agents_last_seen_fire) > 0:
+
                     self.agent_interpreter.observations_to_text(occupied_agent_ids)
-                    if self.agent_interpreter.all_agents_fire_info != "":
-
-                        if self.intervention_type == "auto":
-                            prompt = self.agent_interpreter.rule_based_intervention()
-                        elif self.intervention_type == "llm":
-                            prompt = self.agent_interpreter.llm_intervention(
-                                observations=obs
-                            )
-                        else:
-                            print("ERROR: Intervention not recognized")
-
-                        response = self.agent_interpreter.run_LLM_interpreter(prompt)
-                        rule_or_llm_based_tasks = (
-                            self.agent_interpreter.parse_task_interpretation(
-                                response, self.intervention_type
-                            )
+                    if self.intervention_type == "auto":
+                        prompt = self.agent_interpreter.rule_based_intervention()
+                    if self.intervention_type == "llm":
+                        prompt = self.agent_interpreter.llm_intervention(
+                            observations=obs
                         )
-                        tasks.update(rule_or_llm_based_tasks)
 
-            self.task_count += len(tasks)
-            self.total_task_count += len(tasks)
-            self.asign_tasks_to_agents(tasks)
-            occupied_agent_ids = self.update_occupied_agent_ids_list()
+                    print(f"Fire detected. Prompt: {prompt}")
+
+                    response = self.agent_interpreter.run_LLM_interpreter(prompt)
+
+                    print(f"LLM-Mediator response: {response}")
+                    tasks = self.agent_interpreter.parse_task_interpretation(
+                        response, self.intervention_type
+                    )
+
+                    # print(f"Found this tasks: {tasks}")
+                # else:
+                #     print(
+                #         f"{len(self.all_agent_keys) - len(occupied_agent_ids)} available agent(s), but no fire detected!"
+                #     )
+
+                if len(tasks) > 0:
+                    self.task_count += len(tasks)
+                    self.total_task_count += len(tasks)
+                    self.asign_tasks_to_agents(tasks, occupied_agent_ids)
+                    occupied_agent_ids = self.update_occupied_agent_ids_list()
 
         # Set only the required actions (from the DecisionSteps) in Unity3D.
         # brain name: Agent
@@ -269,9 +280,6 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                 # TODO:
                 # send_string to Unity
                 message_to_agents += f"{agent_id}:"
-
-                # might be enough to update weather water is carried
-                self.agent_interpreter.get_all_observations(obs)
 
                 # TASK: PICK WATER
                 if self.agent_policy_state[agent_id]["tasks"][0] == "water":
@@ -314,6 +322,13 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         # check agents on LLM dutys decay or terminated and reset
         for agent_id, values in self.agent_policy_state.items():
             if terminateds["__all__"] or values["task_decay"] < 0:
+                if terminateds["__all__"]:
+                    print(f"agent {agent_id} terminated")
+                if values["task_decay"] < 0:
+                    print(
+                        f"agent {agent_id} intervention cooldown below 0 - {len(values['tasks'])} task(s) left"
+                    )
+
                 self.reset_agent_policy_state(agent_id)
 
         self.episode_timesteps += 1
@@ -324,6 +339,8 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
     def reset(
         self, *, seed=None, options=None
     ) -> Tuple[MultiAgentDict, MultiAgentDict]:
+
+        print("####################### ENVIRONMENT RESET #######################")
 
         self.terminateds = set()
         self.truncateds = set()
@@ -456,7 +473,13 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
 
     def task_pick_up_water(self, obs, agent_id, action_dict):
         # check if task is completed
-        picked_water = self.agent_interpreter.all_agents_holding_water[agent_id] == 1
+        picked_water = (
+            int(self.agent_interpreter.all_agents_holding_water[agent_id]) == 1
+        )
+
+        x = obs[agent_id][1][0] * 750
+        y = obs[agent_id][1][1] * 750
+
         if picked_water == False:
             action_to_pick_up_water_from_closest_source = (
                 self.get_action_to_pick_up_water_from_closest_source(obs, agent_id)
@@ -470,6 +493,9 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                 tuple([0]),
             )
         else:
+            print(
+                f"agent {agent_id} finished task picked up water at location: {x:.2f}, {y:.2f} after {self.task_decay - self.agent_policy_state[agent_id]['task_decay']} steps"
+            )
             self.agent_policy_state[agent_id]["tasks"].pop(0)
 
     def task_go_to_location(self, obs, agent_id, action_dict):
@@ -486,9 +512,9 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
 
         distance_to_target = self.distance_to_target(obs, agent_id, target)
         # print(f"agent {agent_id} distance to target: {distance_to_target}")
-        if distance_to_target < 5:
+        if distance_to_target < 25:
             print(
-                f"agent {agent_id} finished task {self.agent_policy_state[agent_id]['tasks'][0]}"
+                f"agent {agent_id} finished task {self.agent_policy_state[agent_id]['tasks'][0]} after {self.task_decay - self.agent_policy_state[agent_id]['task_decay']} steps"
             )
             self.agent_policy_state[agent_id]["tasks"].pop(0)
 

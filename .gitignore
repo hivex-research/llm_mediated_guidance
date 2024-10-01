@@ -170,3 +170,11 @@ ray_results/
 wandb/
 data/
 models/
+
+AWS_NL_PHARIA_1_INTERVENTION_2_FUCKUP/
+
+src/test_plot.py
+sandbox.ipynb
+src/compute_results.py
+src/sidechannels/custom_wandb_callback.py
+logs
