@@ -126,10 +126,14 @@ for experiment in experiments:
         df = pd.DataFrame(data_matrix)
 
         # Filter the data to only plot the first 300,000 steps if the title starts with "Natural Language Controller"
-        if experiment[key]["title"].startswith("Natural Language Controller"):
-            max_step = 300000
-            scaled_time_steps = [step for step in scaled_time_steps if step <= max_step]
-            df = df.iloc[: len(scaled_time_steps)]
+        # if experiment[key]["title"].startswith("Natural Language Controller"):
+        #     max_step = 300000
+        #     scaled_time_steps = [step for step in scaled_time_steps if step <= max_step]
+        #     df = df.iloc[: len(scaled_time_steps)]
+
+        max_step = 300000
+        scaled_time_steps = [step for step in scaled_time_steps if step <= max_step]
+        df = df.iloc[: len(scaled_time_steps)]
 
         # Plot the mean line
         mean_values = df.mean(axis=1)
