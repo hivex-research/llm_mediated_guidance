@@ -166,15 +166,17 @@ unity3d_env_local.py
 env/WindFarm_hivex_windows
 
 results/
+env/
 ray_results/
 wandb/
 data/
 models/
+tests/
 
 AWS_NL_PHARIA_1_INTERVENTION_2_FUCKUP/
 
 src/test_plot.py
-sandbox.ipynb
 src/compute_results.py
 src/sidechannels/custom_wandb_callback.py
 logs
+sandbox.ipynb
