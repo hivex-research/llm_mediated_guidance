@@ -16,10 +16,10 @@ The motivation of this work is to demonstrate how LLM and human expert guidance 
 
 ## ⚡ Quick Overview (TL;DR)
 
-- Download Aerial Wildfire Suppression [HIVEX Environments](https://github.com/hivex-research/hivex-environments)
-- Reproducing LLM-Mediated Guidance for MARL Systems results: [Train-Test-Pipeline Script](https://github.com/hivex-research/llm_mediated_guidance/blob/main/src/train_test_pipeline.py)
-- [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
-- [LLM-Mediated Guidance for MARL Systems result plots](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) on GitHub :octocat:
+- Download Aerial Wildfire Suppression HIVEX Environments [ANONYMIZED]
+- Reproducing LLM-Mediated Guidance for MARL Systems results: Train-Test-Pipeline Script [ANONYMIZED]
+- HIVEX Leaderboard [ANONYMIZED] on Huggingface 🤗
+- LLM-Mediated Guidance for MARL Systems result plots [ANONYMIZED] on GitHub :octocat:
 
 ## 🐍 Installation using Conda Virtual Environment (Recommended)
 
@@ -48,7 +48,7 @@ as follows:
 4. Install `llm_mediated_guidance`:
 
    ```shell
-   git clone git@github.com:hivex-research/llm_mediated_guidance.git
+   git clone git@github.com:[ANONYMIZED]
    cd llm_mediated_guidance
    pip install -e .
    ```
@@ -109,10 +109,10 @@ Re-Shaped Rewards:
 
 ### Download / Clone binaries locally
 
-1. Download the HIVEX Aeial Wildfire Suppression environment binaries for your operating system from the [hivex-environments](https://github.com/hivex-research/hivex-environments) repository:
+1. Download the HIVEX Aeial Wildfire Suppression environment binaries for your operating system from the hivex-environments [ANONYMIZED] repository:
 
    ```shell
-   git clone git@github.com:hivex-research/hivex-environments.git
+   git clone git@github.com:[ANONYMIZED]
    ```
 
 2. Please make sure to un-zip the environment folder.
@@ -133,15 +133,15 @@ python src/train_test_pipeline.py
 
 ### 📊 Results
 
-All results can be found in the [hivex-results](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) repository. Or on the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗. More details on the training runs can be found on [google drive](https://drive.google.com/drive/folders/1WJHPjskP96EnAJz8FI2R-rok1z5XBUW_), which we could not upload due to space constraints.
+All results can be found in the hivex-results [ANONYMIZED] repository. Or on the HIVEX Leaderboard [ANONYMIZED] on Huggingface 🤗. More details on the training runs can be found on [google drive](https://drive.google.com/drive/folders/1WJHPjskP96EnAJz8FI2R-rok1z5XBUW_), which we could not upload due to space constraints.
 
-## ✨ Submit your own Results to the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
+## ✨ Submit your own Results to the HIVEX Leaderboar [ANONYMIZED] on Huggingface 🤗
 
 1. Install all dependencies as described [above](#installation-using-conda-virtual-environment-recommended).
 
 2. Run the Train and Test Pipeline with `src/train_test_pipeline.py`
 
-3. Make sure your model matches the [baseline results with task 0 and difficulty 1](https://huggingface.co/hivex-research/hivex-AWS-PPO-baseline-task-0-difficulty-1) model format. :warning: Because the LLM Guidance work has shaped the rewards, please only submit `Crash Count`,
+3. Make sure your model matches the baseline results with task 0 and difficulty 1 [ANONYMIZED] model format. :warning: Because the LLM Guidance work has shaped the rewards, please only submit `Crash Count`,
    `Extinguishing Trees`, `Fire Out`, `Fire too Close to City`, `Preparing Trees`, `Water Drop` and `Water Pickup` results.
 
 **Congratulations, you did it 🚀!**
