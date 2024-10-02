@@ -4,17 +4,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-
 experiments = [
     {
         "episode_reward_mean": {
             "title": "Rule-Based Controller: Episode Reward Mean",
             "file_name": "baseline_vs_rb_episode_reward_mean.pdf",
             "colors": [
-                "#ffcc00",
-                "#ff6600",
                 "#cc3300",
+                "#ff6600",
+                "#ffcc00",
             ],
+            "y_lim_max": 12000,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -26,7 +26,8 @@ experiments = [
         "episode_reward_mean": {
             "title": "Natural Language Controller: Episode Reward Mean",
             "file_name": "baseline_vs_nl_episode_reward_mean.pdf",
-            "colors": ["#14DFB4", "#0EAB8A", "#0072B2"],
+            "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
+            "y_lim_max": 12000,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -39,10 +40,11 @@ experiments = [
             "title": "Rule-Based Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_rb_extinguishing_trees_reward_mean.pdf",
             "colors": [
-                "#ffcc00",
-                "#ff6600",
                 "#cc3300",
+                "#ff6600",
+                "#ffcc00",
             ],
+            "y_lim_max": 800,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -54,7 +56,8 @@ experiments = [
         "AerialWildfireSuppression/Extinguishing Trees Reward_mean": {
             "title": "Natural Language Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_nl_extinguishing_trees_reward_mean.pdf",
-            "colors": ["#14DFB4", "#0EAB8A", "#0072B2"],
+            "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
+            "y_lim_max": 800,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -72,8 +75,9 @@ custom_legend_names = [
 ]
 
 # Define the root directory
-root_dir = "./results/train"
+root_dir = "./results/final/train"
 
+# First pass to calculate global y-axis limits
 for experiment in experiments:
     key = list(experiment.keys())[0]
 
@@ -106,7 +110,38 @@ for experiment in experiments:
                                         reward_mean = results["env_runners"][
                                             "custom_metrics"
                                         ][key]
+                                accumulated_data[folder][i].append(reward_mean)
 
+
+for experiment in experiments:
+    key = list(experiment.keys())[0]
+
+    accumulated_data = defaultdict(lambda: defaultdict(list))
+
+    # Traverse only the selected folders
+    for folder in experiment[key]["selected_folders"]:
+        folder_path = os.path.join(root_dir, folder)
+        if os.path.isdir(folder_path):
+            for subdir, _, files in os.walk(folder_path):
+                for file in files:
+                    if file == "result.json":
+                        file_path = os.path.join(subdir, file)
+                        with open(file_path, "r") as f:
+                            for i, line in enumerate(f):
+                                results = json.loads(line)
+
+                                if key == "episode_reward_mean":
+                                    if key in results["env_runners"]:
+                                        reward_mean = results["env_runners"][key]
+                                        accumulated_data[folder][i].append(reward_mean)
+                                elif (
+                                    key
+                                    == "AerialWildfireSuppression/Extinguishing Trees Reward_mean"
+                                ):
+                                    if key in results["env_runners"]["custom_metrics"]:
+                                        reward_mean = results["env_runners"][
+                                            "custom_metrics"
+                                        ][key]
                                 accumulated_data[folder][i].append(reward_mean)
 
     # Now we have all the data, let's process and plot it
@@ -125,34 +160,23 @@ for experiment in experiments:
         data_matrix = [data_per_time_step[trial] for trial in time_steps]
         df = pd.DataFrame(data_matrix)
 
-        # Filter the data to only plot the first 300,000 steps if the title starts with "Natural Language Controller"
-        # if experiment[key]["title"].startswith("Natural Language Controller"):
-        #     max_step = 300000
-        #     scaled_time_steps = [step for step in scaled_time_steps if step <= max_step]
-        #     df = df.iloc[: len(scaled_time_steps)]
-
+        # Limit to the first 300,000 steps
         max_step = 300000
         scaled_time_steps = [step for step in scaled_time_steps if step <= max_step]
         df = df.iloc[: len(scaled_time_steps)]
 
         # Plot the mean line
         mean_values = df.mean(axis=1)
-        std_values = df.std(axis=1)
         plt.plot(
             scaled_time_steps,
             mean_values,
-            label=f"{custom_legend_names[idx]}",  # Use custom legend name here
+            label=f"{custom_legend_names[idx]}",
             color=colors[idx],
             linestyle="-",
             marker=None,
         )
 
-        last_5_mean = mean_values.values[-5:].mean()
-        last_5_std = std_values.values[-5:].mean()
-
-        print(f"Last 5 mean values for {folder}: {last_5_mean} - std: {last_5_std}")
-
-        # Shaded region between min and max (use default min/max without manual calculation)
+        # Shaded region between min and max
         plt.fill_between(
             scaled_time_steps,
             df.min(axis=1),
@@ -165,6 +189,9 @@ for experiment in experiments:
     plt.title(experiment[key]["title"])
     plt.xlabel("Step")
     plt.ylabel("Reward Mean")
+
+    # Set the global y-axis limits
+    plt.ylim(0, experiment[key]["y_lim_max"])
 
     # Set x-axis to scientific notation
     plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))

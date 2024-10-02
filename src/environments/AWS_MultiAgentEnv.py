@@ -27,7 +27,19 @@ from mlagents_envs.base_env import ActionTuple
 from policies.hivex_ppo_torch_policy import HIVEXPPOTorchPolicy
 
 YELLOW = "\033[93m"
+RED = "\033[91m"
+GREEN = "\033[92m"
 RESET = "\033[0m"
+
+STRATEGY_PRINT = """┏--------------------------------------------{RED}STRATEGY{RESET}-----------------------------------------------------┑
+TEMPERATURE: {RED}{TEMPERATURE}{RESET}
+|---------------------------------------------------------------------------------------------------------|
+{STRATEGY}
+┗---------------------------------------------------------------------------------------------------------┙"""
+
+LLM_MEDIATOR_RESPONSE_PRINT = """┏------------------------------------------{GREEN}LLM-MEDIATOR{RESET}---------------------------------------------------┑
+{RESPONSE}
+┗---------------------------------------------------------------------------------------------------------┙"""
 
 
 class AerialWildFireSuppressionEnv(MultiAgentEnv):
@@ -235,26 +247,37 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                             observations=obs
                         )
 
-                    print(f"Fire detected. Prompt: {prompt}")
+                    print(
+                        STRATEGY_PRINT.format(
+                            STRATEGY=prompt,
+                            RED=RED,
+                            RESET=RESET,
+                            TEMPERATURE=self.agent_interpreter.temperature,
+                        )
+                    )
 
                     response = self.agent_interpreter.run_LLM_interpreter(prompt)
 
-                    print(f"LLM-Mediator response: {response}")
+                    print(
+                        LLM_MEDIATOR_RESPONSE_PRINT.format(
+                            GREEN=GREEN, RESET=RESET, RESPONSE=response
+                        )
+                    )
                     tasks = self.agent_interpreter.parse_task_interpretation(
                         response, self.intervention_type
                     )
 
-                    # print(f"Found this tasks: {tasks}")
-                # else:
-                #     print(
-                #         f"{len(self.all_agent_keys) - len(occupied_agent_ids)} available agent(s), but no fire detected!"
-                #     )
+                    if len(tasks) == 0:
+                        # this is a safety measure to prevent the LLM from getting stuck
+                        # with the same "faulty" strategy that is not parseable by the LLM-Mediator
+                        self.agent_interpreter.temperature += 0.01
 
                 if len(tasks) > 0:
                     self.task_count += len(tasks)
                     self.total_task_count += len(tasks)
                     self.asign_tasks_to_agents(tasks, occupied_agent_ids)
                     occupied_agent_ids = self.update_occupied_agent_ids_list()
+                    self.agent_interpreter.temperature = 0.0
 
         # Set only the required actions (from the DecisionSteps) in Unity3D.
         # brain name: Agent

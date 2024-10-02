@@ -35,7 +35,6 @@ AGENT_IDS = [
     "Agent?team=0_2",
 ]
 
-
 STRATEGY_PROMPT = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
 Instruction:
 Agent 'Agent?team=0_0', Agent 'Agent?team=0_1' and Agent 'Agent?team=0_2' each control an aeroplane to extinguish or prepare trees for incoming fire. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
@@ -56,12 +55,10 @@ Locations:
 HORIZONTAL locations: ['left', 'right', 'center']
 VERTICAL locations: ['bottom', 'top', 'center']
 Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
-Agent 'Agent?team=0_0' go to y x
+Agent 'Agent?team=0_0' go to {example}
 Use one line per agent and be precise with the template. Use the correct agent names: 'Agent?team=0_0', 'Agent?team=0_1', 'Agent?team=0_2'
 Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
-
-# Pahria: Agent 'Agent?team=0_0' go to bottom right
 
 # -1, 1 | 0, 1 | 1, 1
 # -1, 0 | 0, 0 | 1, 0
@@ -116,6 +113,8 @@ class InterventionInterpreter(object):
         self.all_agents_movement_dir = {}
         self.observation_scale_factor = 750
 
+        self.temperature = 0.0
+
         self.output_dir = self.get_unique_output_dir(
             DATA_PATH / f"event_interpreter_data_{self.name}"
         )
@@ -129,6 +128,7 @@ class InterventionInterpreter(object):
         params = {
             "prompt": Prompt.from_text(prompt),
             "maximum_tokens": maximum_tokens,
+            "temperature": self.temperature,
         }
 
         request = CompletionRequest(**params)
@@ -162,7 +162,10 @@ class InterventionInterpreter(object):
 
         ### INTERVENTION ###
 
-        interpreter_prompt = NL_INTERVENTION_PROMPT.format(STRATEGY=strategy)
+        interpreter_prompt = NL_INTERVENTION_PROMPT.format(
+            STRATEGY=strategy,
+            example="bottom right" if "Pharia" in self.model else "y x",
+        )
 
         return interpreter_prompt
 
