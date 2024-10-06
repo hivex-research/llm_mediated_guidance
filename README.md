@@ -17,7 +17,7 @@ The motivation of this work is to demonstrate how LLM and human expert guidance 
 ## ⚡ Quick Overview (TL;DR)
 
 - Download Aerial Wildfire Suppression [HIVEX Environments](https://github.com/hivex-research/hivex-environments)
-- Reproducing LLM-Mediated Guidance for MARL Systems results: [Train-Test-Pipeline Script](https://github.com/hivex-research/llm_mediated_guidance/blob/main/src/train_test_pipeline.py)
+- Reproducing LLM-Mediated Guidance for MARL Systems results: [Train-Pipeline Script](https://github.com/hivex-research/llm_mediated_guidance/blob/main/src/train_pipeline.py)
 - [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
 - [LLM-Mediated Guidance for MARL Systems result plots](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) on GitHub :octocat:
 
@@ -121,14 +121,14 @@ Re-Shaped Rewards:
 
    - `env/Hivex_AerialWildfireSuppression_win/Hivex_AerialWildfireSuppression.exe`
 
-Note: If you want to use a custom directory for your environments and use the `train_test_pipeline.py`, please adjust the directory global at the top of the script.
+Note: If you want to use a custom directory for your environments and use the `train_pipeline.py`, please adjust the directory global at the top of the script.
 
-### Train and Test using RLLib
+### Train using RLLib
 
-Start train and test pipeline:
+Start train pipeline:
 
 ```shell
-python src/train_test_pipeline.py
+python src/train_pipeline.py
 ```
 
 ### 📊 Results
@@ -139,7 +139,7 @@ All results can be found in the [hivex-results](https://github.com/hivex-researc
 
 1. Install all dependencies as described [above](#installation-using-conda-virtual-environment-recommended).
 
-2. Run the Train and Test Pipeline with `src/train_test_pipeline.py`
+2. Run the Train Pipeline with `src/train_pipeline.py`
 
 3. Make sure your model matches the [baseline results with task 0 and difficulty 1](https://huggingface.co/hivex-research/hivex-AWS-PPO-baseline-task-0-difficulty-1) model format. :warning: Because the LLM Guidance work has shaped the rewards, please only submit `Crash Count`,
    `Extinguishing Trees`, `Fire Out`, `Fire too Close to City`, `Preparing Trees`, `Water Drop` and `Water Pickup` results.

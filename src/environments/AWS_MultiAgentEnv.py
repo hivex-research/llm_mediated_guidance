@@ -154,6 +154,8 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         # reset stats reader
         self.stats_channel.get_and_reset_stats()
 
+        self.llm_mediator_last_response = ""
+
         print("####################### ENVIRONMENT CREATED #######################")
 
     def update_occupied_agent_ids_list(self):
@@ -256,6 +258,7 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                         )
                     )
 
+                    # LLM-Mediator
                     response = self.agent_interpreter.run_LLM_interpreter(prompt)
 
                     print(
@@ -263,14 +266,18 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                             GREEN=GREEN, RESET=RESET, RESPONSE=response
                         )
                     )
-                    tasks = self.agent_interpreter.parse_task_interpretation(
-                        response, self.intervention_type
-                    )
+
+                    if response != self.llm_mediator_last_response:
+                        tasks = self.agent_interpreter.parse_task_interpretation(
+                            response, self.intervention_type
+                        )
 
                     if len(tasks) == 0:
                         # this is a safety measure to prevent the LLM from getting stuck
                         # with the same "faulty" strategy that is not parseable by the LLM-Mediator
                         self.agent_interpreter.temperature += 0.01
+
+                    self.llm_mediator_last_response = response
 
                 if len(tasks) > 0:
                     self.task_count += len(tasks)

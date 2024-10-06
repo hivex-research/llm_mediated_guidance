@@ -280,11 +280,12 @@ class InterventionInterpreter(object):
         """
         Returns a unique directory name by adding a numerical suffix if the base_dir already exists.
         """
-        if not os.path.exists(base_dir):
-            return base_dir
+        if not os.path.exists(f"{base_dir}_0.json"):
+            return f"{base_dir}_0.json"
         suffix = 1
         while os.path.exists(f"{base_dir}_{suffix}"):
             suffix += 1
+
         return f"{base_dir}_{suffix}.json"
 
     def run_LLM_interpreter(self, prompt):
@@ -306,7 +307,7 @@ class InterventionInterpreter(object):
                 self.output_dir,
                 "a",
             ) as file:
-                file.write(json.dumps(data) + "\n")
+                json.dump(data, file, indent=4)
             # print(
             #     f"File 'event_interpreter_data_{self.name}.json' has been created in the directory: {DATA_PATH}"
             # )

@@ -167,6 +167,7 @@ for experiment in experiments:
 
         # Plot the mean line
         mean_values = df.mean(axis=1)
+        std_values = df.std(axis=1)
         plt.plot(
             scaled_time_steps,
             mean_values,
@@ -175,6 +176,11 @@ for experiment in experiments:
             linestyle="-",
             marker=None,
         )
+
+        last_5_mean = mean_values.values[-5:].mean()
+        last_5_std = std_values.values[-5:].mean()
+
+        print(f"Last 5 mean values for {folder}: {last_5_mean} - std: {last_5_std}")
 
         # Shaded region between min and max
         plt.fill_between(
