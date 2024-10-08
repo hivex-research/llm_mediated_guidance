@@ -267,7 +267,10 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                         )
                     )
 
-                    if response != self.llm_mediator_last_response:
+                    if (
+                        response != self.llm_mediator_last_response
+                        or self.intervention_type == "auto"
+                    ):
                         tasks = self.agent_interpreter.parse_task_interpretation(
                             response, self.intervention_type
                         )

@@ -113,7 +113,7 @@ def train_policy(experiment_config, config, args):
         NUM_ENV_STEPS_SAMPLED_LIFETIME: args.stop_timesteps,
     }
 
-    output_dir = Path("results/train") / experiment_config["name"]
+    output_dir = (Path("results/train") / experiment_config["name"]).resolve()
 
     # Create the unique directory
     os.makedirs(output_dir, exist_ok=True)
@@ -142,13 +142,13 @@ if __name__ == "__main__":
 
     experiment_config_dirs = [
         ### no intervention
-        "src/configs/training_config_no_intervention.yml",
+        # "src/configs/training_config_no_intervention.yml",
         ### rule based controller
         "src/configs/training_config_rule_based_llama_3.1_8b_instruct.yml",
         "src/configs/training_config_rule_based_pharia_1_7b_control_aligned.yml",
         ### natural language controller
-        "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
-        "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
+        # "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
+        # "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
     ]
 
     for experiment_config_dir in experiment_config_dirs:
