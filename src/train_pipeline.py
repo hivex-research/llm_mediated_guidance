@@ -22,12 +22,17 @@ from ray.rllib.utils.test_utils import check_learning_achieved
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 
+default_path = (
+    Path(__file__).parent.parent
+    / "env/Hivex_AerialWildfireSuppression_win/Hivex_AerialWildfireSuppression.exe"
+)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--env", type=str, default="AerialWildfireSuppression")
 parser.add_argument(
     "--file-name",
     type=str,
-    default="C:/Users/pdsie/Documents/human_intervention_marl/env/Hivex_AerialWildfireSuppression_win/Hivex_AerialWildfireSuppression.exe",
+    default=str(default_path),
     help="The Unity3d binary (compiled) game, e.g. "
     "'/home/ubuntu/soccer_strikers_vs_goalie_linux.x86_64'. Use `None` for "
     "a currently running Unity3D editor.",
