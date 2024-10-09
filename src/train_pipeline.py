@@ -147,18 +147,18 @@ if __name__ == "__main__":
 
     experiment_config_dirs = [
         ### no intervention
-        # "src/configs/training_config_no_intervention.yml",
+        "src/configs/training_config_no_intervention.yml",
         ### rule based controller
         "src/configs/training_config_rule_based_llama_3.1_8b_instruct.yml",
         "src/configs/training_config_rule_based_pharia_1_7b_control_aligned.yml",
         ### natural language controller
-        # "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
-        # "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
+        "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
+        "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
     ]
 
     for experiment_config_dir in experiment_config_dirs:
-        for i in range(9):
-            ray.init(local_mode=False)
+        for i in range(10):
+            ray.init(local_mode=True)
 
             with open(experiment_config_dir, "r") as file:
                 experiment_config = yaml.safe_load(file)

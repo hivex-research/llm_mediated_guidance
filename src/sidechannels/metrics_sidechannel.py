@@ -1,7 +1,11 @@
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
+import yaml
+from pathlib import Path
 
 CYAN = "\033[96m"
 RESET = "\033[0m"
+
+root_path = Path(__file__).parent.parent.parent / "results/train/"
 
 
 class CustomMetricsCallback(DefaultCallbacks):
@@ -15,6 +19,9 @@ class CustomMetricsCallback(DefaultCallbacks):
         self.steps_in_interval = (
             0  # Track the number of steps in the 9000-step interval
         )
+
+        self.agents_rewards_episode = {}
+        self.episode = 0
 
     def on_episode_step(
         self,
@@ -35,6 +42,13 @@ class CustomMetricsCallback(DefaultCallbacks):
         step_reward_sum = sum(
             [value for key, value in list(episode.agent_rewards.items())]
         )
+
+        for agent_env_id, reward in episode.agent_rewards.items():
+            agent_id, _ = agent_env_id
+            if agent_id not in self.agents_rewards_episode:
+                self.agents_rewards_episode[agent_id] = []
+
+            self.agents_rewards_episode[agent_id].append(float(reward))
 
         # Add the step rewards to the cumulative total for the interval
         self.cumulative_rewards += step_reward_sum
@@ -72,24 +86,49 @@ class CustomMetricsCallback(DefaultCallbacks):
         # add task count to metrics
         task_count = unity_env.task_count
         episode.custom_metrics["task_count"] = task_count
-        # print(f"adding task_count to metrics: {task_count}")
 
         # add total task count to metrics
         total_task_count = unity_env.total_task_count
         episode.custom_metrics["total_task_count"] = total_task_count
-        # print(f"adding total_task_count to metrics: {total_task_count}")
 
-        # print(episode.custom_metrics)
+        self.agents_rewards_episode = {
+            f"episode_{self.episode}": self.agents_rewards_episode
+        }
 
-        # if "total reward" not in episode.custom_metrics:
-        #     episode.custom_metrics["total reward"] = []
-        # if "mean reward" not in episode.custom_metrics:
-        #     episode.custom_metrics["mean reward"] = []
+        latest_modified_folder = find_latest_modified_folder(root_path)
 
-        # for key, metric in stats_side_channel.items():
-        #     metric_sum = sum(
-        #         [value[0] for value in metric[-len(episode.agent_rewards) :]]
-        #     )
-        #     if key not in episode.hist_data:
-        #         episode.hist_data[key] = []
-        #     episode.hist_data[key].append(metric_sum / len(episode.agent_rewards))
+        # Example path to the latest modified folder (from the previous function)
+        file_path = latest_modified_folder / "agents_rewards_episode.yaml"
+
+        # Ensure the directory exists (though in this case, latest_modified_folder should exist)
+        latest_modified_folder.mkdir(parents=True, exist_ok=True)
+
+        # Dump self.agents_rewards_episode to a file
+        with open(file_path, "a") as f:
+            yaml.dump(self.agents_rewards_episode, f, default_flow_style=None)
+
+        # Reset the self.agents_rewards_episode to an empty dictionary
+        self.agents_rewards_episode = {}
+
+        self.episode += 1
+
+
+def find_latest_modified_folder(root):
+    latest_time = None
+    latest_folder = None
+
+    # Traverse the folder structure recursively
+    for folder in root.glob("**/"):  # '**/' is used to look into subfolders
+        if folder.is_dir():  # Only consider directories
+            # Check the latest modification time of the folder itself
+            folder_mtime = folder.stat().st_mtime
+
+            # Now, check the latest modification time of the contents (files and subfolders)
+            for content in folder.iterdir():
+                content_mtime = content.stat().st_mtime
+                # Compare both folder and content modification times
+                if latest_time is None or content_mtime > latest_time:
+                    latest_time = content_mtime
+                    latest_folder = folder
+
+    return latest_folder
