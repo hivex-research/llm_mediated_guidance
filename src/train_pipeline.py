@@ -103,7 +103,7 @@ def train_policy(experiment_config, config, args):
         lambda c: Unity3DEnv(
             run_config=experiment_config,
             file_name=c["file_name"],
-            no_graphics=True,
+            no_graphics=experiment_config["no_graphics"],
             episode_horizon=c["episode_horizon"],
             side_channels=[
                 env_params_channel,
@@ -147,10 +147,10 @@ if __name__ == "__main__":
 
     experiment_config_dirs = [
         ### no intervention
-        "src/configs/training_config_no_intervention.yml",
+        # "src/configs/training_config_no_intervention.yml",
         ### rule based controller
-        "src/configs/training_config_rule_based_llama_3.1_8b_instruct.yml",
-        "src/configs/training_config_rule_based_pharia_1_7b_control_aligned.yml",
+        # "src/configs/training_config_rule_based_llama_3.1_8b_instruct.yml",
+        # "src/configs/training_config_rule_based_pharia_1_7b_control_aligned.yml",
         ### natural language controller
         "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
         "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     for experiment_config_dir in experiment_config_dirs:
         for i in range(10):
-            ray.init(local_mode=True)
+            ray.init(local_mode=False)
 
             with open(experiment_config_dir, "r") as file:
                 experiment_config = yaml.safe_load(file)

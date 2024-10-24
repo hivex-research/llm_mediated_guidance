@@ -33,6 +33,21 @@ class CustomMetricsCallback(DefaultCallbacks):
         env_index=None,
         **kwargs,
     ):
+
+        # Handle custom side-channel logging (same as before)
+        # unity_env = base_env.get_sub_environments()[0]
+        # stats_side_channel = unity_env.stats_channel.stats
+
+        # if any(
+        #     [
+        #         v[0] > 0
+        #         for v in stats_side_channel[
+        #             "AerialWildfireSuppression/Fire too Close to City"
+        #         ]
+        #     ]
+        # ):
+        #     print("")
+
         # Increment step counter based on the episode's current step count
         self.total_steps += 3
         self.steps_in_interval += 1
@@ -77,6 +92,16 @@ class CustomMetricsCallback(DefaultCallbacks):
         # Handle custom side-channel logging (same as before)
         unity_env = base_env.get_sub_environments()[0]
         stats_side_channel = unity_env.stats_channel.stats
+
+        # if any(
+        #     [
+        #         v[0] > 0
+        #         for v in stats_side_channel[
+        #             "AerialWildfireSuppression/Fire too Close to City"
+        #         ]
+        #     ]
+        # ):
+        #     print("")
 
         for key, metric in stats_side_channel.items():
             episode.custom_metrics[key] = sum([value[0] for value in metric]) / len(

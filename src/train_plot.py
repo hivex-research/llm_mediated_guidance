@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
+import numpy as np
 
 experiments = [
     {
@@ -14,7 +15,7 @@ experiments = [
                 "#ff6600",
                 "#ffcc00",
             ],
-            "y_lim_max": 12000,
+            "y_lim_max": 4000,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -27,7 +28,7 @@ experiments = [
             "title": "Natural Language Controller: Episode Reward Mean",
             "file_name": "baseline_vs_nl_episode_reward_mean.pdf",
             "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
-            "y_lim_max": 12000,
+            "y_lim_max": 4000,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -44,7 +45,7 @@ experiments = [
                 "#ff6600",
                 "#ffcc00",
             ],
-            "y_lim_max": 800,
+            "y_lim_max": 400,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -57,7 +58,7 @@ experiments = [
             "title": "Natural Language Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_nl_extinguishing_trees_reward_mean.pdf",
             "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
-            "y_lim_max": 800,
+            "y_lim_max": 400,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -168,6 +169,9 @@ for experiment in experiments:
         # Plot the mean line
         mean_values = df.mean(axis=1)
         std_values = df.std(axis=1)
+        n_trials = df.shape[1]  # Number of columns represents the number of trials
+        sem_values = std_values / np.sqrt(n_trials)
+
         plt.plot(
             scaled_time_steps,
             mean_values,
@@ -178,15 +182,15 @@ for experiment in experiments:
         )
 
         last_5_mean = mean_values.values[-5:].mean()
-        last_5_std = std_values.values[-5:].mean()
+        last_5_sem = sem_values.values[-5:].mean()
 
-        print(f"Last 5 mean values for {folder}: {last_5_mean} - std: {last_5_std}")
+        print(f"Last 5 mean values for {folder}: {last_5_mean} - SEM: {last_5_sem}")
 
-        # Shaded region between min and max
+        # Shaded region for mean ± SEM
         plt.fill_between(
             scaled_time_steps,
-            df.min(axis=1),
-            df.max(axis=1),
+            mean_values - sem_values,
+            mean_values + sem_values,
             color=colors[idx],
             alpha=0.2,
         )

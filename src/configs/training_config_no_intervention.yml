@@ -1,14 +1,6 @@
 name: "NO_INTERVENTION"
 env_parameters:
-  training: 1
-  human_intervention: 0
-  task: 0
-  ext_fire_reward: 1000
-  prep_tree_reward: 0.1
-  water_pickup_reward: 0.1
-  fire_out_reward: 0
-  crash_reward: -100
-  fire_close_to_city_reward: 0
+  random_village_location: 0
 no_graphics: True
 intervention_type: "none"
 

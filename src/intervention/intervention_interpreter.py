@@ -37,14 +37,15 @@ AGENT_IDS = [
 
 STRATEGY_PROMPT = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
 Instruction:
-Agent 'Agent?team=0_0', Agent 'Agent?team=0_1' and Agent 'Agent?team=0_2' each control an aeroplane to extinguish or prepare trees for incoming fire. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
+Agent 'Agent?team=0_0', Agent 'Agent?team=0_1' and Agent 'Agent?team=0_2' each control an aeroplane to extinguish fire and protect the village, which is of high importance. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
 | top left | top center | top right |
 | center left | center center | center right |
 | bottom left | bottom center | bottom right |
 The following are the positions of all agents and fire locations:
 {AGENTS}
 {FIRES}
-A basic strategy is to send all agents directly to the fire or surrounding areas. Please use locations combinations HORIZONTAL VERTICAL and correct agent names in your description.
+The village is in the bottomn right.
+Please use locations combinations HORIZONTAL VERTICAL and correct agent names in your description.
 Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
 
@@ -54,8 +55,7 @@ Instruction:
 Locations:
 HORIZONTAL locations: ['left', 'right', 'center']
 VERTICAL locations: ['bottom', 'top', 'center']
-Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
-Agent 'Agent?team=0_0' go to {example}
+Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'.
 Use one line per agent and be precise with the template. Use the correct agent names: 'Agent?team=0_0', 'Agent?team=0_1', 'Agent?team=0_2'
 Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
@@ -164,7 +164,7 @@ class InterventionInterpreter(object):
 
         interpreter_prompt = NL_INTERVENTION_PROMPT.format(
             STRATEGY=strategy,
-            example="bottom right" if "Pharia" in self.model else "y x",
+            # example="bottom right" if "Pharia" in self.model else "y x",
         )
 
         return interpreter_prompt
