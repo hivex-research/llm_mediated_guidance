@@ -15,7 +15,7 @@ experiments = [
                 "#ff6600",
                 "#ffcc00",
             ],
-            "y_lim_max": 4000,
+            "y_lim_max": 500,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -28,7 +28,7 @@ experiments = [
             "title": "Natural Language Controller: Episode Reward Mean",
             "file_name": "baseline_vs_nl_episode_reward_mean.pdf",
             "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
-            "y_lim_max": 4000,
+            "y_lim_max": 500,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -45,7 +45,7 @@ experiments = [
                 "#ff6600",
                 "#ffcc00",
             ],
-            "y_lim_max": 400,
+            "y_lim_max": 18,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "RB_LLAMA_3.1",
@@ -58,7 +58,7 @@ experiments = [
             "title": "Natural Language Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_nl_extinguishing_trees_reward_mean.pdf",
             "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
-            "y_lim_max": 400,
+            "y_lim_max": 18,
             "selected_folders": [
                 "NO_INTERVENTION",
                 "NL_LLAMA_3.1",
@@ -76,7 +76,7 @@ custom_legend_names = [
 ]
 
 # Define the root directory
-root_dir = "./results/final/train"
+root_dir = "./results/train"
 
 # First pass to calculate global y-axis limits
 for experiment in experiments:

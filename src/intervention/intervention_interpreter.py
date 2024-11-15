@@ -55,7 +55,8 @@ Instruction:
 Locations:
 HORIZONTAL locations: ['left', 'right', 'center']
 VERTICAL locations: ['bottom', 'top', 'center']
-Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'.
+Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
+Agent 'Agent?team=0_0' go to {EXAMPLE}
 Use one line per agent and be precise with the template. Use the correct agent names: 'Agent?team=0_0', 'Agent?team=0_1', 'Agent?team=0_2'
 Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
@@ -164,7 +165,7 @@ class InterventionInterpreter(object):
 
         interpreter_prompt = NL_INTERVENTION_PROMPT.format(
             STRATEGY=strategy,
-            # example="bottom right" if "Pharia" in self.model else "y x",
+            EXAMPLE="bottom right" if "Pharia" in self.model else "y x",
         )
 
         return interpreter_prompt
