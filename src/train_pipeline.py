@@ -55,9 +55,9 @@ parser.add_argument(
     "--stop-iters", type=int, default=9999, help="Number of iterations to train."
 )
 parser.add_argument(
-    "--stop-timesteps", type=int, default=1000000, help="Number of timesteps to train."
+    "--stop-timesteps", type=int, default=1800000, help="Number of timesteps to train."
 )
-# 1800000
+
 parser.add_argument(
     "--stop-reward",
     type=float,
@@ -145,6 +145,8 @@ def train_policy(experiment_config, config, args):
 
 if __name__ == "__main__":
 
+    agent_counts = [3, 4, 5, 6]
+
     experiment_config_dirs = [
         ### no intervention
         "src/configs/training_config_no_intervention.yml",
@@ -156,52 +158,59 @@ if __name__ == "__main__":
         "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
     ]
 
-    for experiment_config_dir in experiment_config_dirs:
-        for i in range(10):
-            ray.init(local_mode=False)
+    for agent_count in agent_counts:
+        for experiment_config_dir in experiment_config_dirs:
+            for i in range(10):
+                ray.init(local_mode=True)
 
-            with open(experiment_config_dir, "r") as file:
-                experiment_config = yaml.safe_load(file)
+                with open(experiment_config_dir, "r") as file:
+                    experiment_config = yaml.safe_load(file)
+                    experiment_config["env_parameters"]["agent_count"] = agent_count
+                    experiment_config["name"] = (
+                        f"{experiment_config['name']}_{agent_count}"
+                    )
 
-            args = parser.parse_args()
-            # Get policies (different agent types; "behaviors" in MLAgents) and
-            # the mappings from individual agents to Policies.
-            policies, policy_mapping_fn = Unity3DEnv.get_policy_configs_for_game(
-                args.env
-            )
-            config = (
-                PPOConfig()
-                .environment(
-                    "unity3d",
-                    env_config={
-                        "file_name": args.file_name,
-                        "episode_horizon": args.horizon,
-                    },
+                args = parser.parse_args()
+                # Get policies (different agent types; "behaviors" in MLAgents) and
+                # the mappings from individual agents to Policies.
+                policies, policy_mapping_fn = Unity3DEnv.get_policy_configs_for_game(
+                    args.env
                 )
-                .framework("torch")  # "tf" if args.env != "Pyramids" else "torch"
-                # For running in editor, force to use just one Worker (we only have
-                # one Unity running)!
-                .env_runners(
-                    num_env_runners=args.num_workers if args.file_name else 0,
-                    rollout_fragment_length=300,
+                config = (
+                    PPOConfig()
+                    .environment(
+                        "unity3d",
+                        env_config={
+                            "file_name": args.file_name,
+                            "episode_horizon": args.horizon,
+                        },
+                    )
+                    .framework("torch")  # "tf" if args.env != "Pyramids" else "torch"
+                    # For running in editor, force to use just one Worker (we only have
+                    # one Unity running)!
+                    .env_runners(
+                        num_env_runners=args.num_workers if args.file_name else 0,
+                        rollout_fragment_length=300,
+                    )
+                    .training(
+                        lr=experiment_config["lr"],
+                        lambda_=experiment_config["lambda_"],
+                        gamma=experiment_config["gamma"],
+                        sgd_minibatch_size=experiment_config["sgd_minibatch_size"],
+                        train_batch_size=experiment_config["train_batch_size"],
+                        num_sgd_iter=experiment_config["num_sgd_iter"],
+                        clip_param=experiment_config["clip_param"],
+                        model={"fcnet_hiddens": [256, 256]},
+                    )
+                    .multi_agent(policies=policies, policy_mapping_fn=policy_mapping_fn)
+                    .resources(num_gpus=1.0)
+                    .env_runners(num_gpus_per_env_runner=1.0)
+                    .callbacks(CustomMetricsCallback)
                 )
-                .training(
-                    lr=experiment_config["lr"],
-                    lambda_=experiment_config["lambda_"],
-                    gamma=experiment_config["gamma"],
-                    sgd_minibatch_size=experiment_config["sgd_minibatch_size"],
-                    train_batch_size=experiment_config["train_batch_size"],
-                    num_sgd_iter=experiment_config["num_sgd_iter"],
-                    clip_param=experiment_config["clip_param"],
-                    model={"fcnet_hiddens": [256, 256]},
+
+                config["intervention_type"] = experiment_config["intervention_type"]
+                train_policy(
+                    experiment_config=experiment_config, config=config, args=args
                 )
-                .multi_agent(policies=policies, policy_mapping_fn=policy_mapping_fn)
-                .resources(num_gpus=1.0)
-                .env_runners(num_gpus_per_env_runner=1.0)
-                .callbacks(CustomMetricsCallback)
-            )
 
-            config["intervention_type"] = experiment_config["intervention_type"]
-            train_policy(experiment_config=experiment_config, config=config, args=args)
-
-            ray.shutdown()
+                ray.shutdown()

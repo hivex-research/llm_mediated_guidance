@@ -49,7 +49,7 @@ class CustomMetricsCallback(DefaultCallbacks):
         #     print("")
 
         # Increment step counter based on the episode's current step count
-        self.total_steps += 3
+        self.total_steps += episode.active_agent_steps
         self.steps_in_interval += 1
 
         # Get the rewards for this step and accumulate them

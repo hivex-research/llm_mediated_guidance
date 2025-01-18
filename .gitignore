@@ -179,3 +179,6 @@ src/test_plot.py
 src/compute_results.py
 src/sidechannels/custom_wandb_callback.py
 logs
+plots
+
+sandbox.ipynb

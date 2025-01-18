@@ -1,6 +1,7 @@
 name: "RB_LLAMA_3.1"
 env_parameters:
   random_village_location: 0
+  agent_count: 3
 no_graphics: True
 intervention_type: "auto"
 model: "llama-3.1-8b-instruct"

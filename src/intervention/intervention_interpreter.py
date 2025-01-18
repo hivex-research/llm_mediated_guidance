@@ -9,16 +9,8 @@ from dotenv import load_dotenv
 from aleph_alpha_client import Prompt, SemanticEmbeddingRequest, SemanticRepresentation
 
 DATA_PATH = Path(__file__).parent / "data"
-# Load the .env file
+
 load_dotenv()
-
-# # OPENAI
-# from openai import OpenAI
-
-# # Get the API key from the environment variable
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# # Set up the API key
-# open_ai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ALEPH ALPHA
 from aleph_alpha_client import Client, Prompt, CompletionRequest
@@ -29,15 +21,15 @@ aleph_alpha_model = Client(token=API_KEY)
 HORIZONTAL = ["left", "center", "right"]
 VERTICAL = ["bottom", "center", "top"]
 
-AGENT_IDS = [
-    "Agent?team=0_0",
-    "Agent?team=0_1",
-    "Agent?team=0_2",
-]
+# AGENT_IDS = [
+#     "Agent?team=0_0",
+#     "Agent?team=0_1",
+#     "Agent?team=0_2",
+# ]
 
 STRATEGY_PROMPT = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
 Instruction:
-Agent 'Agent?team=0_0', Agent 'Agent?team=0_1' and Agent 'Agent?team=0_2' each control an aeroplane to extinguish fire and protect the village, which is of high importance. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
+{AGENT_NAMES} each control an aeroplane to extinguish fire and protect the village, which is of high importance. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
 | top left | top center | top right |
 | center left | center center | center right |
 | bottom left | bottom center | bottom right |
@@ -50,20 +42,16 @@ Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
 
 NL_INTERVENTION_PROMPT = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are controlling 3 agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
+You are controlling {AGENT_COUNT} agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
 Instruction:
 Locations:
 HORIZONTAL locations: ['left', 'right', 'center']
 VERTICAL locations: ['bottom', 'top', 'center']
 Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
 Agent 'Agent?team=0_0' go to {EXAMPLE}
-Use one line per agent and be precise with the template. Use the correct agent names: 'Agent?team=0_0', 'Agent?team=0_1', 'Agent?team=0_2'
+Use one line per agent and be precise with the template. Use the correct agent names: {AGENTS}
 Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
-
-# -1, 1 | 0, 1 | 1, 1
-# -1, 0 | 0, 0 | 1, 0
-# -1, -1| 0, -1| 1, -1
 
 
 class InterventionInterpreter(object):
@@ -81,6 +69,8 @@ class InterventionInterpreter(object):
     # v = [-0.11725578, -0.8425961, 0., 0., 1., -1., -1., 0., 0.]
     """
 
+    AGENT_IDS = None
+
     def __init__(
         self,
         name: str = "",
@@ -94,10 +84,7 @@ class InterventionInterpreter(object):
         cell_count_y=3,
     ):
         self.name = name
-        # self.model = "luminous-extended-control" if model is None else model
-        self.model = (
-            model  # "Pharia-1-LLM-7B-control-aligned"  # "llama-3.1-8b-instruct"
-        )
+        self.model = model
         self.stop_sequence = ["###"] if stop_sequence is None else stop_sequence
         self.shot = "zero" if shot is None else shot
         self.intervention_type = intervention_type
@@ -120,12 +107,7 @@ class InterventionInterpreter(object):
             DATA_PATH / f"event_interpreter_data_{self.name}"
         )
 
-        # self.asymmetric_embeddings = [
-        #     self.embed(text, SemanticRepresentation.Document) for text in AGENT_IDS
-        # ]
-
     def aleph_alpha_api_worker(self, prompt, maximum_tokens=60):
-        # AlephAlpha
         params = {
             "prompt": Prompt.from_text(prompt),
             "maximum_tokens": maximum_tokens,
@@ -140,7 +122,7 @@ class InterventionInterpreter(object):
     def human_intervention(self, text):
 
         prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are controlling 3 agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
+        You are controlling {len(self.AGENT_IDS)} agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
         ### Instruction:        
         Locations:
         HORIZONTAL locations: ["left", "right", "center"]
@@ -151,21 +133,34 @@ class InterventionInterpreter(object):
 
         return prompt
 
-    def llm_intervention(self, observations):
+    def llm_intervention(self):
 
         ### STRATEGY ###
 
-        intervention_prompt = STRATEGY_PROMPT.format(
-            AGENTS=self.all_agents_location_info, FIRES=self.all_agents_fire_info
+        agent_names = (
+            ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS[:-1]])
+            + f" and Agent '{self.AGENT_IDS[-1]}'"
         )
 
-        strategy = self.aleph_alpha_api_worker(intervention_prompt, 196)
+        intervention_prompt = STRATEGY_PROMPT.format(
+            AGENT_NAMES=agent_names,
+            AGENTS=self.all_agents_location_info,
+            FIRES=self.all_agents_fire_info,
+        )
+
+        strategy = self.aleph_alpha_api_worker(
+            intervention_prompt, 136 + len(self.AGENT_IDS) * 20
+        )
 
         ### INTERVENTION ###
 
+        agent_names = ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS])
+
         interpreter_prompt = NL_INTERVENTION_PROMPT.format(
+            AGENT_COUNT=len(self.AGENT_IDS),
             STRATEGY=strategy,
             EXAMPLE="bottom right" if "Pharia" in self.model else "y x",
+            AGENTS=agent_names,
         )
 
         return interpreter_prompt
@@ -188,6 +183,14 @@ class InterventionInterpreter(object):
                 "Agent?team=0_0": ["Agent 0", "Agent zero", "agent Zero", "Agent Zero"],
                 "Agent?team=0_1": ["Agent 1", "Agent one", "agent One", "Agent One"],
                 "Agent?team=0_2": ["Agent 2", "Agent two", "agent Two", "Agent Two"],
+                "Agent?team=0_3": [
+                    "Agent 3",
+                    "Agent three",
+                    "agent Three",
+                    "Agent Three",
+                ],
+                "Agent?team=0_4": ["Agent 4", "Agent four", "agent Four", "Agent Four"],
+                "Agent?team=0_5": ["Agent 5", "Agent five", "agent Five", "Agent Five"],
             }
             for key, values in agent_id_mapping.items():
                 for value in values:
@@ -218,25 +221,6 @@ class InterventionInterpreter(object):
                     agent_id = word.replace("'", "")
                     words.remove(word)
                     break
-
-            # if agent_id could not be found using pattern use cosine similarity
-            # if agent_id not in AGENT_IDS:
-            #     asymmetric_query = self.embed(agent_task, SemanticRepresentation.Query)
-            #     max_cosine_similarity_score = 0
-            #     max_cosine_similarity_agent_id = ""
-            #     for i, id in enumerate(AGENT_IDS):
-            #         cosine_similarity_score = self.cosine_similarity(
-            #             asymmetric_query, self.asymmetric_embeddings[i]
-            #         )
-            #         if max_cosine_similarity_score < cosine_similarity_score:
-            #             max_cosine_similarity_score = cosine_similarity_score
-            #             max_cosine_similarity_agent_id = id
-
-            #     if max_cosine_similarity_score > 0.4:
-            #         agent_id = max_cosine_similarity_agent_id
-            #         print(
-            #             f"after using cosine similarity, found agent_id: {agent_id} in command: {agent_task}"
-            #         )
 
             vertical_location = ""
             for word in words:
@@ -270,11 +254,6 @@ class InterventionInterpreter(object):
                     intervention_type,
                 )
 
-        # example task list
-        # { 'Agent?team=0_0': ('bottom', 'left'), 'Agent?team=0_1': ('center', 'center') }
-        # HORIZONTAL = ["left", "center", "right"]
-        # VERTICAL = ["bottom", "center", "top"]
-
         return tasks
 
     def get_unique_output_dir(self, base_dir):
@@ -291,7 +270,7 @@ class InterventionInterpreter(object):
 
     def run_LLM_interpreter(self, prompt):
 
-        completion = self.aleph_alpha_api_worker(prompt)
+        completion = self.aleph_alpha_api_worker(prompt, len(self.AGENT_IDS) * 20)
 
         data = {
             "all_agents_location_info": self.all_agents_location_info,
@@ -301,17 +280,12 @@ class InterventionInterpreter(object):
         }
 
         try:
-            # Ensure the directory exists
             os.makedirs(DATA_PATH, exist_ok=True)
-            # Writing JSON data
             with open(
                 self.output_dir,
                 "a",
             ) as file:
                 json.dump(data, file, indent=4)
-            # print(
-            #     f"File 'event_interpreter_data_{self.name}.json' has been created in the directory: {DATA_PATH}"
-            # )
         except Exception as e:
             print(f"An error occurred: {e}")
 
@@ -336,6 +310,9 @@ class InterventionInterpreter(object):
         return sumxy / math.sqrt(sumxx * sumyy)
 
     def get_all_observations(self, obs):
+        if self.AGENT_IDS is None:
+            self.AGENT_IDS = [f"Agent?team=0_{x}" for x in range(len(obs))]
+
         self.get_all_agents_last_seen_fire_location(obs)
         self.get_all_agents_location(obs)
         self.get_all_agents_movement_dir(obs)
@@ -375,18 +352,15 @@ class InterventionInterpreter(object):
             self.all_agents_holding_water[k] = vector_obs[4]
 
     def get_observed_fire(self, x, y):
-        # fire grid cell indexes
         fire_location_indexes = self.get_grid_cell_from_position(x, y)
-        # "There is fire in the bottom right"
         return f"{VERTICAL[fire_location_indexes[1]]} {HORIZONTAL[fire_location_indexes[0]]}"
 
     def get_all_agent_observed_fire(self):
-        # fire grid cell indexes
         info_list = [
             self.get_observed_fire(x=observed_fire[0], y=observed_fire[1])
             for _, observed_fire in self.all_agents_last_seen_fire.items()
         ]
-        # dedup
+
         info_list = list(set(info_list))
         info_list = [
             f"Fire {index} is in the {info}" for index, info in enumerate(info_list)

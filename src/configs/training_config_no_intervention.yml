@@ -1,6 +1,7 @@
 name: "NO_INTERVENTION"
 env_parameters:
   random_village_location: 0
+  agent_count: 3
 no_graphics: True
 intervention_type: "none"
 

@@ -245,9 +245,7 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                     if self.intervention_type == "auto":
                         prompt = self.agent_interpreter.rule_based_intervention()
                     if self.intervention_type == "llm":
-                        prompt = self.agent_interpreter.llm_intervention(
-                            observations=obs
-                        )
+                        prompt = self.agent_interpreter.llm_intervention()
 
                     print(
                         STRATEGY_PRINT.format(

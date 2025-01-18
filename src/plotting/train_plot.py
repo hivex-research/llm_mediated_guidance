@@ -10,11 +10,7 @@ experiments = [
         "episode_reward_mean": {
             "title": "Rule-Based Controller: Episode Reward Mean",
             "file_name": "baseline_vs_rb_episode_reward_mean.pdf",
-            "colors": [
-                "#cc3300",
-                "#ff6600",
-                "#ffcc00",
-            ],
+            "colors": ["#cc3300", "#0072B2", "#ffcc00"],
             "y_lim_max": 500,
             "selected_folders": [
                 "NO_INTERVENTION",
@@ -27,7 +23,7 @@ experiments = [
         "episode_reward_mean": {
             "title": "Natural Language Controller: Episode Reward Mean",
             "file_name": "baseline_vs_nl_episode_reward_mean.pdf",
-            "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
+            "colors": ["#cc3300", "#0072B2", "#ffcc00"],
             "y_lim_max": 500,
             "selected_folders": [
                 "NO_INTERVENTION",
@@ -40,11 +36,7 @@ experiments = [
         "AerialWildfireSuppression/Extinguishing Trees Reward_mean": {
             "title": "Rule-Based Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_rb_extinguishing_trees_reward_mean.pdf",
-            "colors": [
-                "#cc3300",
-                "#ff6600",
-                "#ffcc00",
-            ],
+            "colors": ["#cc3300", "#0072B2", "#ffcc00"],
             "y_lim_max": 18,
             "selected_folders": [
                 "NO_INTERVENTION",
@@ -57,7 +49,7 @@ experiments = [
         "AerialWildfireSuppression/Extinguishing Trees Reward_mean": {
             "title": "Natural Language Controller: Extinguishing Trees Reward Mean",
             "file_name": "baseline_vs_nl_extinguishing_trees_reward_mean.pdf",
-            "colors": ["#cc3300", "#0EAB8A", "#0072B2"],
+            "colors": ["#cc3300", "#0072B2", "#ffcc00"],
             "y_lim_max": 18,
             "selected_folders": [
                 "NO_INTERVENTION",
@@ -76,7 +68,7 @@ custom_legend_names = [
 ]
 
 # Define the root directory
-root_dir = "./results/train"
+root_dir = "./results/final/train"
 
 # First pass to calculate global y-axis limits
 for experiment in experiments:
@@ -102,7 +94,6 @@ for experiment in experiments:
                                 if key == "episode_reward_mean":
                                     if key in results["env_runners"]:
                                         reward_mean = results["env_runners"][key]
-                                        accumulated_data[folder][i].append(reward_mean)
                                 elif (
                                     key
                                     == "AerialWildfireSuppression/Extinguishing Trees Reward_mean"
@@ -134,7 +125,6 @@ for experiment in experiments:
                                 if key == "episode_reward_mean":
                                     if key in results["env_runners"]:
                                         reward_mean = results["env_runners"][key]
-                                        accumulated_data[folder][i].append(reward_mean)
                                 elif (
                                     key
                                     == "AerialWildfireSuppression/Extinguishing Trees Reward_mean"
