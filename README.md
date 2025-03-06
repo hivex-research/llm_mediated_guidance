@@ -69,21 +69,21 @@ Observations:
 ```shell
 Visual: (42 x 42 x 3)
 Vector: (8)
-position: x
-position: y
-direction: x
-direction: y
-holding water: [True, False]
-closest observed fire location: x
-closest observed fire location: y
-fire state [not_burning, burning]
+Position: x
+Position: y
+Direction: x
+Direction: y
+Holding water: [True, False]
+Closest observed fire location: x
+Closest observed fire location: y
+Fire state [not_burning, burning]
 ```
 
 Actions:
 
 ```shell
 1       Continous Action (-1 to +1) - this is steering left, steering right
-1       discrete Action branch with two possibilities (0 or 1) - this is dropping water if held
+1       Discrete Action branch with two possibilities (0 or 1) - this is dropping water if held
 ```
 
 Re-Shaped Rewards:
