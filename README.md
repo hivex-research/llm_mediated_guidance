@@ -146,16 +146,40 @@ All results can be found in the [hivex-results](https://github.com/hivex-researc
 
 **Congratulations, you did it 🚀!**
 
-## 📝 Citing LLM-Mediated Guidance for MARL Systems
-
-If you are using hivex in your work, please cite:
+## 📝 Citing [LLM-Mediated Guidance of MARL Systems](https://arxiv.org/abs/2503.13553)
 
 ```bibtex
-@software{,
-   author={},
-   title={},
-   year={},
-   month={},
-   url={},
+@article{siedler_llm-mediated_2025,
+	title = {{LLM}-{Mediated} {Guidance} of {MARL} {Systems}},
+	url = {http://arxiv.org/abs/2503.13553},
+	doi = {10.48550/arXiv.2503.13553},
+	abstract = {In complex multi-agent environments, achieving efficient learning and desirable behaviours is a significant challenge for Multi-Agent Reinforcement Learning (MARL) systems. This work explores the potential of combining MARL with Large Language Model (LLM)-mediated interventions to guide agents toward more desirable behaviours. Specifically, we investigate how LLMs can be used to interpret and facilitate interventions that shape the learning trajectories of multiple agents. We experimented with two types of interventions, referred to as controllers: a Natural Language (NL) Controller and a Rule-Based (RB) Controller. The NL Controller, which uses an LLM to simulate human-like interventions, showed a stronger impact than the RB Controller. Our findings indicate that agents particularly benefit from early interventions, leading to more efficient training and higher performance. Both intervention types outperform the baseline without interventions, highlighting the potential of LLM-mediated guidance to accelerate training and enhance MARL performance in challenging environments.},
+	urldate = {2025-09-09},
+	publisher = {arXiv},
+	author = {Siedler, Philipp D. and Gemp, Ian},
+	month = mar,
+	year = {2025},
+	note = {arXiv:2503.13553 [cs]},
+	keywords = {Computer Science - Artificial Intelligence, Computer Science - Computation and Language, Computer Science - Multiagent Systems},
+}
+```
+
+If you are using hivex in your work, please cite our paper [HIVEX: A High-Impact Environment Suite for Multi-Agent Research (extended version)](https://arxiv.org/pdf/2501.04180):
+
+```bibtex
+@article{siedler_hivex_2025,
+	title = {{HIVEX}: A High-Impact Environment Suite for Multi-Agent Research (extended version)},
+	url = {http://arxiv.org/abs/2501.04180},
+	doi = {10.48550/arXiv.2501.04180},
+	shorttitle = {{HIVEX}},
+	abstract = {Games have been vital test beds for the rapid development of Agent-based research. Remarkable progress has been achieved in the past, but it is unclear if the findings equip for real-world problems. While pressure grows, some of the most critical ecological challenges can find mitigation and prevention solutions through technology and its applications. Most real-world domains include multi-agent scenarios and require machine-machine and human-machine collaboration. Open-source environments have not advanced and are often toy scenarios, too abstract or not suitable for multi-agent research. By mimicking real-world problems and increasing the complexity of environments, we hope to advance state-of-the-art multi-agent research and inspire researchers to work on immediate real-world problems. Here, we present {HIVEX}, an environment suite to benchmark multi-agent research focusing on ecological challenges. {HIVEX} includes the following environments: Wind Farm Control, Wildfire Resource Management, Drone-Based Reforestation, Ocean Plastic Collection, and Aerial Wildfire Suppression. We provide environments, training examples, and baselines for the main and sub-tasks. All trained models resulting from the experiments of this work are hosted on Hugging Face. We also provide a leaderboard on Hugging Face and encourage the community to submit models trained on our environment suite.},
+	number = {{arXiv}:2501.04180},
+	publisher = {{arXiv}},
+	author = {Siedler, Philipp Dominic},
+	urldate = {2025-01-22},
+	date = {2025-01-21},
+	eprinttype = {arxiv},
+	eprint = {2501.04180 [cs]},
+	keywords = {Computer Science - Artificial Intelligence, Computer Science - Computer Science and Game Theory, Computer Science - Multiagent Systems},
 }
 ```
