@@ -85,8 +85,8 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         if self.intervention_type != "none":
             self.agent_interpreter = InterventionInterpreter(
                 name=run_config["name"],
-                model=run_config["model"],
-                shot=run_config["shot"],
+                model=run_config.get("model", None),
+                shot=run_config.get("shot", None),
                 intervention_type=run_config["intervention_type"],
             )
 
@@ -178,7 +178,10 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                 )
                 self.agent_policy_state[agent_id]["following"] = intervention_type
                 # go to tasked location
-                self.agent_policy_state[agent_id]["tasks"].append(task)
+                if intervention_type == "human":
+                    self.agent_policy_state[agent_id]["tasks"] = [task]
+                else:
+                    self.agent_policy_state[agent_id]["tasks"].append(task)
                 print(f"agent {agent_id} tasked with go to location: {task}")
                 if int(self.agent_interpreter.holding_water(agent_id)) == 0:
                     # get water
@@ -222,29 +225,31 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         if self.intervention_type != "none":
             self.agent_interpreter.get_all_observations(obs)
 
-            # build task list if not NN only activated
-            if len(occupied_agent_ids) < len(self.all_agent_keys):
-                tasks = {}
-                # HUMAN INTERVENTION
-                if (
-                    self.intervention_type == "human"
-                    and self.human_intervention_channel.command != ""
-                ):
+            tasks = {}
+            # HUMAN INTERVENTION
+            if self.intervention_type == "human":
+                if self.human_intervention_channel.command != "":
                     print(f"HUMAN: {self.human_intervention_channel.command}")
                     response = self.agent_interpreter.human_intervention(
                         self.human_intervention_channel.get_and_reset_commands()
                     )
+                    response = self.agent_interpreter.run_LLM_interpreter(response)
                     human_tasks = self.agent_interpreter.parse_task_interpretation(
                         response, self.intervention_type
                     )
                     tasks.update(human_tasks)
-                # RULE-BASED OR LLM-BASED INTERVENTION
-                elif len(self.agent_interpreter.all_agents_last_seen_fire) > 0:
-
+                    occupied_agent_ids = []
+            # build task list if not NN only activated
+            else:
+                if (
+                    len(occupied_agent_ids) < len(self.all_agent_keys)
+                    and len(self.agent_interpreter.all_agents_last_seen_fire) > 0
+                ):
+                    # RULE-BASED OR LLM-BASED INTERVENTION
                     self.agent_interpreter.observations_to_text(occupied_agent_ids)
                     if self.intervention_type == "auto":
                         prompt = self.agent_interpreter.rule_based_intervention()
-                    if self.intervention_type == "llm":
+                    elif self.intervention_type == "llm":
                         prompt = self.agent_interpreter.llm_intervention()
 
                     print(
@@ -280,12 +285,12 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
 
                     self.llm_mediator_last_response = response
 
-                if len(tasks) > 0:
-                    self.task_count += len(tasks)
-                    self.total_task_count += len(tasks)
-                    self.asign_tasks_to_agents(tasks, occupied_agent_ids)
-                    occupied_agent_ids = self.update_occupied_agent_ids_list()
-                    self.agent_interpreter.temperature = 0.0
+            if len(tasks) > 0:
+                self.task_count += len(tasks)
+                self.total_task_count += len(tasks)
+                self.asign_tasks_to_agents(tasks, occupied_agent_ids)
+                occupied_agent_ids = self.update_occupied_agent_ids_list()
+                self.agent_interpreter.temperature = 0.0
 
         # Set only the required actions (from the DecisionSteps) in Unity3D.
         # brain name: Agent

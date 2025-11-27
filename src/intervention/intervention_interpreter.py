@@ -15,8 +15,9 @@ load_dotenv()
 # ALEPH ALPHA
 from aleph_alpha_client import Client, Prompt, CompletionRequest
 
-API_KEY = os.getenv("AA_TOKEN")
-aleph_alpha_model = Client(token=API_KEY)
+aleph_alpha_model = Client(
+    token=os.getenv("AA_TOKEN"), host="https://inference-api.research.pharia.com"
+)
 
 HORIZONTAL = ["left", "center", "right"]
 VERTICAL = ["bottom", "center", "top"]

@@ -156,6 +156,8 @@ if __name__ == "__main__":
         ### natural language controller
         "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
         "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
+        ### human intervention
+        # "src/configs/training_config_human_intervention.yml",
     ]
 
     for agent_count in agent_counts:

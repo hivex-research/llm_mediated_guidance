@@ -1,0 +1,18 @@
+name: "HUMAN_INTERVENTION"
+env_parameters:
+  random_village_location: 0
+  agent_count: 1
+  human_intervention: 1
+  time_scale: 0.1
+no_graphics: False
+intervention_type: "human"
+model: "llama-3.1-8b-instruct"
+shot: "few"
+
+lr: 0.005
+lambda_: 0.95
+gamma: 0.99
+sgd_minibatch_size: 900
+train_batch_size: 9000
+num_sgd_iter: 3
+clip_param: 0.2
