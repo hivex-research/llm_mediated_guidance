@@ -4,55 +4,20 @@ import os
 import re
 import json
 from pathlib import Path
-from typing import Sequence
-from dotenv import load_dotenv
-from aleph_alpha_client import Prompt, SemanticEmbeddingRequest, SemanticRepresentation
+
+from llm.registry import MODEL_REGISTRY
+from intervention.prompt_templates import (
+    FEW_SHOT_EXAMPLE_PROMPT,
+    HUMAN_INTERVENTION_PROMPT,
+    NL_INTERVENTION_PROMPT,
+    SAMPLE_PROMPT,
+    STRATEGY_PROMPT,
+)
 
 DATA_PATH = Path(__file__).parent / "data"
 
-load_dotenv()
-
-# ALEPH ALPHA
-from aleph_alpha_client import Client, Prompt, CompletionRequest
-
-aleph_alpha_model = Client(
-    token=os.getenv("AA_TOKEN"), host="https://inference-api.research.pharia.com"
-)
-
 HORIZONTAL = ["left", "center", "right"]
 VERTICAL = ["bottom", "center", "top"]
-
-# AGENT_IDS = [
-#     "Agent?team=0_0",
-#     "Agent?team=0_1",
-#     "Agent?team=0_2",
-# ]
-
-STRATEGY_PROMPT = """<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-Instruction:
-{AGENT_NAMES} each control an aeroplane to extinguish fire and protect the village, which is of high importance. Your task is it to come up with a strategy for the agents movements on a 3 by 3 grid:
-| top left | top center | top right |
-| center left | center center | center right |
-| bottom left | bottom center | bottom right |
-The following are the positions of all agents and fire locations:
-{AGENTS}
-{FIRES}
-The village is in the bottomn right.
-Please use locations combinations HORIZONTAL VERTICAL and correct agent names in your description.
-Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-"""
-
-NL_INTERVENTION_PROMPT = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are controlling {AGENT_COUNT} agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
-Instruction:
-Locations:
-HORIZONTAL locations: ['left', 'right', 'center']
-VERTICAL locations: ['bottom', 'top', 'center']
-Parse this user input: '{STRATEGY}'. Use this task template: '<agent name> go to <VERTICAL location> <HORIZONTAL location>'. For example:
-Agent 'Agent?team=0_0' go to {EXAMPLE}
-Use one line per agent and be precise with the template. Use the correct agent names: {AGENTS}
-Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-"""
 
 
 class InterventionInterpreter(object):
@@ -75,7 +40,7 @@ class InterventionInterpreter(object):
     def __init__(
         self,
         name: str = "",
-        model: str = None,
+        llm_runner: str = None,
         stop_sequence: list = None,
         shot: str = None,
         intervention_type: str = "no",
@@ -85,7 +50,14 @@ class InterventionInterpreter(object):
         cell_count_y=3,
     ):
         self.name = name
-        self.model = model
+
+        model = MODEL_REGISTRY.get(llm_runner, None)
+        if model:
+            self.llm_runner = model()
+            print(f"Using LLM model: {llm_runner}")
+        else:
+            self.llm_runner = None
+            print(f"No LLM model found for: {llm_runner}")
         self.stop_sequence = ["###"] if stop_sequence is None else stop_sequence
         self.shot = "zero" if shot is None else shot
         self.intervention_type = intervention_type
@@ -108,36 +80,17 @@ class InterventionInterpreter(object):
             DATA_PATH / f"event_interpreter_data_{self.name}"
         )
 
-    def aleph_alpha_api_worker(self, prompt, maximum_tokens=60):
-        params = {
-            "prompt": Prompt.from_text(prompt),
-            "maximum_tokens": maximum_tokens,
-            "temperature": self.temperature,
-        }
-
-        request = CompletionRequest(**params)
-        response = aleph_alpha_model.complete(request, model=self.model)
-
-        return response.completions[0].completion
-
     def human_intervention(self, text):
-
-        prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-        You are controlling {len(self.AGENT_IDS)} agents in an autonomous aerial wildfire suppression scenario<|eot_id|><|start_header_id|>user<|end_header_id|>
-        ### Instruction:        
-        Locations:
-        HORIZONTAL locations: ["left", "right", "center"]
-        VERTICAL locations: ["bottom", "top", "center"]
-        Summarize this user input: "{text}". Use this task template: <agent name> go to <VERTICAL location> <HORIZONTAL location>
-        Use one line per agent and be precise with the template.        
-        ### Response:<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        prompt = HUMAN_INTERVENTION_PROMPT.format(
+            LEN_AGENT_IDS=len(self.AGENT_IDS),
+            TEXT=text,
+        )
 
         return prompt
 
     def llm_intervention(self):
 
         ### STRATEGY ###
-
         agent_names = (
             ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS[:-1]])
             + f" and Agent '{self.AGENT_IDS[-1]}'"
@@ -149,32 +102,27 @@ class InterventionInterpreter(object):
             FIRES=self.all_agents_fire_info,
         )
 
-        strategy = self.aleph_alpha_api_worker(
-            intervention_prompt, 136 + len(self.AGENT_IDS) * 20
-        )
+        strategy = self.llm_runner.run(intervention_prompt)
 
         ### INTERVENTION ###
-
         agent_names = ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS])
 
         interpreter_prompt = NL_INTERVENTION_PROMPT.format(
             AGENT_COUNT=len(self.AGENT_IDS),
             STRATEGY=strategy,
-            EXAMPLE="bottom right" if "Pharia" in self.model else "y x",
+            EXAMPLE="bottom right" if "Pharia" in self.llm_runner else "y x",
             AGENTS=agent_names,
         )
 
         return interpreter_prompt
 
     def rule_based_intervention(self):
-        few_shot = """<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\nAgent 'Agent?team=0_0' is in the bottom center, Agent 'Agent?team=0_1' is in the center right, Agent 'Agent?team=0_2' is in the bottom center. 1 fire(s): Fire 0 is in the center center.\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nAgent 'Agent?team=0_0' go to center center\nAgent 'Agent?team=0_1' go to center center\nAgent 'Agent?team=0_2' go to center center<|eot_id|>"""
-
-        sample = f"<|start_header_id|>user<|end_header_id|>\nInstruction:\nHORIZONTAL locations: ['left', 'right', 'center']\nVERTICAL locations: ['bottom', 'top', 'center']\nInstruct agent(s) to go to their closest fire.\nReply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>\nInput:\n{self.all_agents_location_info} {self.all_agents_fire_info}\nWhere should agents go?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
-
+        prompt = SAMPLE_PROMPT.format(
+            ALL_AGENTS_LOCATION_INFO=self.all_agents_location_info,
+            ALL_AGENTS_FIRE_INFO=self.all_agents_fire_info,
+        )
         if self.shot == "few":
-            prompt = "<|begin_of_text|>" + few_shot + sample
-        else:
-            prompt = "<|begin_of_text|>" + sample
+            prompt = FEW_SHOT_EXAMPLE_PROMPT + prompt
 
         return prompt
 
@@ -271,7 +219,7 @@ class InterventionInterpreter(object):
 
     def run_LLM_interpreter(self, prompt):
 
-        completion = self.aleph_alpha_api_worker(prompt, len(self.AGENT_IDS) * 20)
+        completion = self.llm_runner.run(prompt)
 
         data = {
             "all_agents_location_info": self.all_agents_location_info,
@@ -291,24 +239,6 @@ class InterventionInterpreter(object):
             print(f"An error occurred: {e}")
 
         return completion
-
-    def embed(self, text: str, representation: SemanticRepresentation):
-        request = SemanticEmbeddingRequest(
-            prompt=Prompt.from_text(text), representation=representation
-        )
-        result = aleph_alpha_model.semantic_embed(request, model="luminous-base")
-        return result.embedding
-
-    def cosine_similarity(self, v1: Sequence[float], v2: Sequence[float]) -> float:
-        "compute cosine similarity of v1 to v2: (v1 dot v2)/{||v1||*||v2||)"
-        sumxx, sumxy, sumyy = 0, 0, 0
-        for i in range(len(v1)):
-            x = v1[i]
-            y = v2[i]
-            sumxx += x * x
-            sumyy += y * y
-            sumxy += x * y
-        return sumxy / math.sqrt(sumxx * sumyy)
 
     def get_all_observations(self, obs):
         if self.AGENT_IDS is None:

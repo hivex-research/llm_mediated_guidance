@@ -9,7 +9,7 @@ root_path = Path(__file__).parent.parent.parent / "results/train/"
 
 
 class CustomMetricsCallback(DefaultCallbacks):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, train_batch_size, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.total_steps = 0
         self.cumulative_rewards = 0  # Track total rewards across steps in the interval
@@ -22,6 +22,7 @@ class CustomMetricsCallback(DefaultCallbacks):
 
         self.agents_rewards_episode = {}
         self.episode = 0
+        self.train_batch_size = train_batch_size
 
     def on_episode_step(
         self,
@@ -69,8 +70,8 @@ class CustomMetricsCallback(DefaultCallbacks):
         self.cumulative_rewards += step_reward_sum
         self.all_cumulative_rewards.append(step_reward_sum / agent_count)
 
-        # Check if the total steps reach 9000-step intervals
-        if self.total_steps % 9000 == 0 and self.total_steps > 0:
+        # Check if the total steps reach train_batch_size-step intervals
+        if self.total_steps % self.train_batch_size == 0 and self.total_steps > 0:
             # Calculate the average reward across all steps in this interval
             if self.steps_in_interval > 0:
                 avg_reward = self.cumulative_rewards / (
@@ -80,7 +81,7 @@ class CustomMetricsCallback(DefaultCallbacks):
                     self.all_cumulative_rewards
                 )
                 print(
-                    f"{CYAN}steps: {self.total_steps} - mean reward over last 9000 steps: {avg_reward:0.3f} "
+                    f"{CYAN}steps: {self.total_steps} - mean reward over last {self.train_batch_size} steps: {avg_reward:0.3f} "
                     f"- mean reward over all steps: {overall_mean_reward:0.3f}{RESET}"
                 )
 

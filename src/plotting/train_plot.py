@@ -68,7 +68,7 @@ custom_legend_names = [
 ]
 
 # Define the root directory
-root_dir = "./results/final/train"
+root_dir = "./results/00/train"
 
 # First pass to calculate global y-axis limits
 for experiment in experiments:

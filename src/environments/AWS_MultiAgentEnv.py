@@ -23,8 +23,6 @@ from ray.rllib.examples._old_api_stack.policy.random_policy import RandomPolicy
 from mlagents_envs.side_channel.side_channel import SideChannel
 from mlagents_envs.base_env import ActionTuple
 
-# Hivex
-from policies.hivex_ppo_torch_policy import HIVEXPPOTorchPolicy
 
 YELLOW = "\033[93m"
 RED = "\033[91m"
@@ -85,7 +83,7 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
         if self.intervention_type != "none":
             self.agent_interpreter = InterventionInterpreter(
                 name=run_config["name"],
-                model=run_config.get("model", None),
+                llm_runner=run_config.get("model", None),
                 shot=run_config.get("shot", None),
                 intervention_type=run_config["intervention_type"],
             )
@@ -466,6 +464,9 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
     def get_policy_configs_for_game(
         game_name: str, random: bool = False
     ) -> Tuple[dict, Callable[[AgentID], PolicyID]]:
+        from policies.hivex_ppo_torch_policy import HIVEXPPOTorchPolicy
+        from ray.rllib.policy.policy import PolicySpec
+
         # The RLlib server must know about the Spaces that the Client will be
         # using inside Unity3D, up-front.
         obs_spaces = {
