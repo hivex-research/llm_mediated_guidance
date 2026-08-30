@@ -8,7 +8,7 @@ intervention_type: "none"
 lr: 0.005
 lambda_: 0.95
 gamma: 0.99
-sgd_minibatch_size: 900
-train_batch_size: 9000
+sgd_minibatch_size: 512 # 900
+train_batch_size: 4800 # 9000
 num_sgd_iter: 3
 clip_param: 0.2

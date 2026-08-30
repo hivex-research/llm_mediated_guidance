@@ -54,3 +54,46 @@ Reply like this: <agent name> go to <VERTICAL location> <HORIZONTAL location>
 {ALL_AGENTS_LOCATION_INFO} {ALL_AGENTS_FIRE_INFO}
 Where should agents go?
 """
+
+# Natural Language prompts with exact coordinates and flexible tasks
+NL_STRATEGY_PROMPT = """### Instruction:
+You are coordinating {AGENT_COUNT} aerial firefighting agents to extinguish wildfires and protect the village.
+
+The environment is a 1500x1500 unit grid where:
+- Coordinates range from -750 to 750 on both X and Y axes
+- The village (high priority to protect) is in the bottom-right area (positive X, negative Y)
+- Water sources are located at the edges of the map
+
+Current agent states:
+{AGENTS_DETAILED}
+
+Fire locations:
+{FIRES_DETAILED}
+
+Water source locations are at the map edges (approximately at coordinates like (-700, 0), (700, 0), (0, -700), (0, 700)).
+
+Create a strategy considering:
+1. Agent proximity to fires and water sources
+2. Whether agents are currently carrying water
+3. Priority of protecting the village (bottom-right)
+4. Agents can: go to specific coordinates, pick up water, or scout an area
+
+### Response:
+"""
+
+NL_TASK_PROMPT = """You are assigning tasks to {AGENT_COUNT} aerial firefighting agents.
+
+### Instruction:
+Based on this strategy: '{STRATEGY}'
+
+Assign ONE task per agent using EXACTLY one of these formats:
+- <agent_name> goto <x> <y>  (go to exact coordinates, x and y are integers from -750 to 750)
+- <agent_name> water  (go pick up water from nearest source)
+- <agent_name> scout <x> <y>  (scout/patrol around coordinates)
+
+Agent names: {AGENTS}
+
+Respond with one task per line, using the exact agent names.
+
+### Response:
+"""

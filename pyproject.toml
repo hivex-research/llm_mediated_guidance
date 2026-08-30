@@ -1,0 +1,78 @@
+[project]
+name = "llm-mediated-guidance"
+version = "1.0.0"
+description = "Rule-Based and Natural Language Interventions for Multi-Agent Reinforcement Learning"
+readme = "README.md"
+requires-python = ">=3.9,<3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Philipp D. Siedler", email = "p.d.siedler@gmail.com" }]
+keywords = ["reinforcement-learning", "multi-agent", "llm", "hivex"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Unity environment bridge. Pinned to release_20 via [tool.uv.sources].
+    "mlagents-envs",
+    # MARL training stack.
+    "ray[rllib]==2.37.0",
+    "torch==2.4.1",
+    # Held at 3.20.3: required by the ml-agents gRPC bindings.
+    "protobuf==3.20.3",
+    "numpy==2.0.2",
+    # LLM mediator. The DeepSeek runner talks OpenAI-protocol.
+    "openai>=1.40",
+    "python-dotenv>=1.0",
+    # Analysis and figures.
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "tensorboard>=2.17",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "gputil>=1.4",
+]
+
+[project.optional-dependencies]
+# Only needed for src/sidechannels/custom_wandb_callback.py, which the default
+# train pipeline does not import.
+wandb = ["wandb>=0.17"]
+
+[project.urls]
+Homepage = "https://github.com/hivex-research/llm_mediated_guidance"
+Repository = "https://github.com/hivex-research/llm_mediated_guidance"
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+# --- uv configuration -------------------------------------------------------
+
+[tool.uv.sources]
+mlagents-envs = { git = "https://github.com/Unity-Technologies/ml-agents.git", subdirectory = "ml-agents-envs", rev = "release_20" }
+torch = { index = "pytorch-cu124" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv]
+# ml-agents release_20 hard-pins `numpy==1.21.2`, which predates and conflicts
+# with the ray[rllib] 2.37 stack (pandas 2.2 requires numpy>=1.22.4). The
+# combination that the published results were produced with is numpy 2.0.2, so
+# we override the upstream pin rather than downgrade the training stack.
+override-dependencies = ["numpy==2.0.2"]
+
+# --- build ------------------------------------------------------------------
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

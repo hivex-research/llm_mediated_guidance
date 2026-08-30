@@ -12,7 +12,7 @@ _Rule-Based and Natural Language Interventions for Multi-Agent Reinforcement Lea
 
 ## About
 
-The motivation of this work is to demonstrate how LLM and human expert guidance and an LLM-Mediator could be utilize to guide Reinforcement Learning agents in Multi-Agent Systems to improve traininf efficientcy and performance.
+The motivation of this work is to demonstrate how LLM and human expert guidance and an LLM-Mediator could be used to guide Reinforcement Learning agents in Multi-Agent Systems to improve training efficiency and performance.
 
 ## ⚡ Quick Overview (TL;DR)
 
@@ -21,46 +21,99 @@ The motivation of this work is to demonstrate how LLM and human expert guidance 
 - [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
 - [LLM-Mediated Guidance for MARL Systems result plots](https://github.com/hivex-research/hivex-results/tree/master/results/AerialWildfireSuppression/llm_mediated_guidance/plots) on GitHub :octocat:
 
-## 🐍 Installation using Conda Virtual Environment (Recommended)
+## 🐍 Installation using uv (Recommended)
 
-The installation steps are
-as follows:
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
+`pyproject.toml` and `uv.lock` pin the exact environment the published results
+were produced with, including the CUDA build of PyTorch and the `release_20`
+tag of `ml-agents-envs`.
 
-1. Create and activate a virtual environment, e.g.:
-
-   ```shell
-   conda create -n llm_mediated_guidance python=3.9 -y
-   conda activate llm_mediated_guidance
-   ```
-
-2. Install `ml-agents`:
+1. Install `uv` (once, system-wide):
 
    ```shell
-   pip install git+https://github.com/Unity-Technologies/ml-agents.git@release_20#subdirectory=ml-agents
+   # Windows (PowerShell)
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+   # macOS / Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-3. Install `torch`:
-
-   ```shell
-   pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-   ```
-
-4. Install `llm_mediated_guidance`:
+2. Clone and sync:
 
    ```shell
    git clone git@github.com:hivex-research/llm_mediated_guidance.git
    cd llm_mediated_guidance
-   pip install -e .
+   uv sync
    ```
+
+   That is the whole install. `uv sync` creates `.venv/`, fetches Python 3.9 if
+   it is not already present, and installs every locked dependency, including
+   `torch==2.4.1+cu124` and `mlagents-envs` built from the `release_20` tag.
+
+3. Provide your LLM API key. The mediator reads it from a `.env` file in the
+   repository root:
+
+   ```shell
+   echo "DEEPSEEK=your-api-key-here" > .env
+   ```
+
+Run anything in the project environment by prefixing it with `uv run`, which
+needs no manual activation:
+
+```shell
+uv run python src/train_pipeline.py
+```
+
+If you would rather activate the environment in the usual way:
+
+```shell
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+```
+
+### CPU-only machines
+
+The default lock installs the CUDA 12.4 build of PyTorch. To install the CPU
+build instead, point the `pytorch-cu124` index at the CPU wheels in
+`pyproject.toml` and re-lock:
+
+```toml
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+```
+
+```shell
+uv lock && uv sync
+```
 
 ### Adding/Updating dependencies
 
-To add further dependencies, add them to the corresponding `*.in` file in the `./requirements` folder and re-compile using `pip-compile-multi`:
+Add or remove packages with `uv`, which updates `pyproject.toml` and `uv.lock`
+together:
 
 ```shell
-pip install pip-compile-multi
-pip-compile-multi --autoresolve
+uv add <package>
+uv remove <package>
 ```
+
+To refresh the lockfile without changing the declared dependencies:
+
+```shell
+uv lock --upgrade
+```
+
+Commit `uv.lock` alongside `pyproject.toml` so that collaborators reproduce the
+same environment.
+
+> **Note on `numpy`.** `ml-agents` `release_20` declares `numpy==1.21.2`, which
+> predates and conflicts with the `ray[rllib]` 2.37 stack. The published results
+> were produced with `numpy==2.0.2`, so `pyproject.toml` carries a
+> `[tool.uv] override-dependencies` entry that overrides the upstream pin.
 
 ## 🌍 Aerial Wildfire Suppression Environment Specs
 
@@ -82,7 +135,7 @@ Fire state [not_burning, burning]
 Actions:
 
 ```shell
-1       Continous Action (-1 to +1) - this is steering left, steering right
+1       Continuous Action (-1 to +1) - this is steering left, steering right
 1       Discrete Action branch with two possibilities (0 or 1) - this is dropping water if held
 ```
 
@@ -91,7 +144,7 @@ Re-Shaped Rewards:
 ```shell
 0       for when fire is extinguished
 -100    if crossed red boundary
-+1000   for every extinguished burnign tree: state change burning -> wet
++1000   for every extinguished burning tree: state change burning -> wet
 +0.1    for every tree prepared / used as barrier to block fire from growing: state change existing -> wet
 0       for fire too close to village
 +0.1    for picking up water
@@ -103,13 +156,13 @@ Re-Shaped Rewards:
 
 ### Install dependencies:
 
-1. Install dependencies as described in the [🐍 Installation using Conda Virtual Environment (Recommended)](#installation-using-conda-virtual-environment-recommended) section.
+1. Install dependencies as described in the [🐍 Installation using uv (Recommended)](#-installation-using-uv-recommended) section.
 
 ## 🌍 Download HIVEX Environments
 
 ### Download / Clone binaries locally
 
-1. Download the HIVEX Aeial Wildfire Suppression environment binaries for your operating system from the [hivex-environments](https://github.com/hivex-research/hivex-environments) repository:
+1. Download the HIVEX Aerial Wildfire Suppression environment binaries for your operating system from the [hivex-environments](https://github.com/hivex-research/hivex-environments) repository:
 
    ```shell
    git clone git@github.com:hivex-research/hivex-environments.git
@@ -128,7 +181,7 @@ Note: If you want to use a custom directory for your environments and use the `t
 Start train pipeline:
 
 ```shell
-python src/train_pipeline.py
+uv run python src/train_pipeline.py
 ```
 
 ### 📊 Results
@@ -137,7 +190,7 @@ All results can be found in the [hivex-results](https://github.com/hivex-researc
 
 ## ✨ Submit your own Results to the [HIVEX Leaderboard](https://huggingface.co/spaces/hivex-research/hivex-leaderboard) on Huggingface 🤗
 
-1. Install all dependencies as described [above](#installation-using-conda-virtual-environment-recommended).
+1. Install all dependencies as described [above](#-installation-using-uv-recommended).
 
 2. Run the Train Pipeline with `src/train_pipeline.py`
 

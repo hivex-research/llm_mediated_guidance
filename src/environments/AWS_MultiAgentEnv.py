@@ -10,7 +10,6 @@ from intervention.intervention_interpreter import (
 # RLlib
 from ray.rllib.utils.typing import MultiAgentDict
 from gymnasium.spaces import Box, Discrete, Tuple as TupleSpace
-from ray.rllib.env.wrappers.unity3d_env import Unity3DEnv
 from ray.rllib.env.multi_agent_env import (
     MultiAgentEnv,
 )
@@ -104,8 +103,10 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
             )
             # cache the worker_id and
             # increase it for the next environment
-            worker_id_ = Unity3DEnv._WORKER_ID if file_name else 0
-            Unity3DEnv._WORKER_ID += 1
+            worker_id_ = (
+                AerialWildFireSuppressionEnv._WORKER_ID if file_name else 0
+            )
+            AerialWildFireSuppressionEnv._WORKER_ID += 1
             try:
                 self.unity_env = UnityEnvironment(
                     file_name=file_name,
@@ -175,23 +176,62 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                     f"┏ New Task-List for agent {YELLOW}{agent_id}{RESET} ---------------------------┑"
                 )
                 self.agent_policy_state[agent_id]["following"] = intervention_type
-                # go to tasked location
-                if intervention_type == "human":
+
+                # NL intervention: LLM decides tasks directly, no auto water pickup
+                if intervention_type == "llm":
+                    self._assign_nl_task(agent_id, task)
+                # Human intervention: single task, replace existing
+                elif intervention_type == "human":
                     self.agent_policy_state[agent_id]["tasks"] = [task]
+                    print(f"agent {agent_id} tasked with go to location: {task}")
+                    # Auto add water pickup for human intervention
+                    if int(self.agent_interpreter.holding_water(agent_id)) == 0:
+                        self.agent_policy_state[agent_id]["tasks"].append("water")
+                        print(f"agent {agent_id} tasked with pick up water")
+                        self.agent_policy_state[agent_id]["tasks"].append(task)
+                        print(
+                            f"agent {agent_id} tasked with go back to location: {task}"
+                        )
+                # Auto/RB intervention: append task with auto water logic
                 else:
                     self.agent_policy_state[agent_id]["tasks"].append(task)
-                print(f"agent {agent_id} tasked with go to location: {task}")
-                if int(self.agent_interpreter.holding_water(agent_id)) == 0:
-                    # get water
-                    self.agent_policy_state[agent_id]["tasks"].append("water")
-                    print(f"agent {agent_id} tasked with pick up water")
-                    # and go back to tasked location
-                    self.agent_policy_state[agent_id]["tasks"].append(task)
-                    print(f"agent {agent_id} tasked with go back to location: {task}")
+                    print(f"agent {agent_id} tasked with go to location: {task}")
+                    if int(self.agent_interpreter.holding_water(agent_id)) == 0:
+                        self.agent_policy_state[agent_id]["tasks"].append("water")
+                        print(f"agent {agent_id} tasked with pick up water")
+                        self.agent_policy_state[agent_id]["tasks"].append(task)
+                        print(
+                            f"agent {agent_id} tasked with go back to location: {task}"
+                        )
 
                 print(
                     f"┗-------------------------------------------------------------------┙"
                 )
+
+    def _assign_nl_task(self, agent_id, task):
+        """
+        Assign NL task directly without auto water pickup.
+        Task can be:
+        - "water": pick up water
+        - ("goto", x, y): go to exact coordinates
+        - ("scout", x, y): scout around coordinates
+        """
+        if task == "water":
+            self.agent_policy_state[agent_id]["tasks"].append("water")
+            print(f"agent {agent_id} tasked with: pick up water")
+        elif isinstance(task, tuple) and len(task) == 3:
+            task_type, x, y = task
+            if task_type == "goto":
+                # Store normalized coordinates directly
+                self.agent_policy_state[agent_id]["tasks"].append(("goto", x, y))
+                print(f"agent {agent_id} tasked with: goto ({x*750:.0f}, {y*750:.0f})")
+            elif task_type == "scout":
+                self.agent_policy_state[agent_id]["tasks"].append(("scout", x, y))
+                print(f"agent {agent_id} tasked with: scout ({x*750:.0f}, {y*750:.0f})")
+        else:
+            # Fallback for old-style grid coordinates
+            self.agent_policy_state[agent_id]["tasks"].append(task)
+            print(f"agent {agent_id} tasked with go to location: {task}")
 
     def step(
         self, action_dict: MultiAgentDict
@@ -245,43 +285,61 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                 ):
                     # RULE-BASED OR LLM-BASED INTERVENTION
                     self.agent_interpreter.observations_to_text(occupied_agent_ids)
-                    if self.intervention_type == "auto":
+
+                    # SCRIPTED: the Rule-Based controller with the LLM removed.
+                    # Computes the same nearest-fire -> grid-cell mapping
+                    # directly, so no prompt is built and no model is queried.
+                    if self.intervention_type == "scripted":
+                        tasks = self.agent_interpreter.scripted_intervention(
+                            occupied_agent_ids
+                        )
+                        if len(tasks) > 0:
+                            self.task_count += len(tasks)
+                            self.total_task_count += len(tasks)
+                            self.asign_tasks_to_agents(tasks, occupied_agent_ids)
+                            occupied_agent_ids = (
+                                self.update_occupied_agent_ids_list()
+                            )
+                        tasks = {}
+                        prompt = None
+                    elif self.intervention_type == "auto":
                         prompt = self.agent_interpreter.rule_based_intervention()
                     elif self.intervention_type == "llm":
                         prompt = self.agent_interpreter.llm_intervention()
 
-                    print(
-                        STRATEGY_PRINT.format(
-                            STRATEGY=prompt,
-                            RED=RED,
-                            RESET=RESET,
-                            TEMPERATURE=self.agent_interpreter.temperature,
-                        )
-                    )
-
-                    # LLM-Mediator
-                    response = self.agent_interpreter.run_LLM_interpreter(prompt)
-
-                    print(
-                        LLM_MEDIATOR_RESPONSE_PRINT.format(
-                            GREEN=GREEN, RESET=RESET, RESPONSE=response
-                        )
-                    )
-
-                    if (
-                        response != self.llm_mediator_last_response
-                        or self.intervention_type == "auto"
-                    ):
-                        tasks = self.agent_interpreter.parse_task_interpretation(
-                            response, self.intervention_type
+                    if prompt is not None:
+                        print(
+                            STRATEGY_PRINT.format(
+                                STRATEGY=prompt,
+                                RED=RED,
+                                RESET=RESET,
+                                TEMPERATURE=self.agent_interpreter.temperature,
+                            )
                         )
 
-                    if len(tasks) == 0:
-                        # this is a safety measure to prevent the LLM from getting stuck
-                        # with the same "faulty" strategy that is not parseable by the LLM-Mediator
-                        self.agent_interpreter.temperature += 0.01
+                        # LLM-Mediator
+                        response = self.agent_interpreter.run_LLM_interpreter(prompt)
 
-                    self.llm_mediator_last_response = response
+                        print(
+                            LLM_MEDIATOR_RESPONSE_PRINT.format(
+                                GREEN=GREEN, RESET=RESET, RESPONSE=response
+                            )
+                        )
+
+                        if (
+                            response != self.llm_mediator_last_response
+                            or self.intervention_type == "auto"
+                        ):
+                            tasks = self.agent_interpreter.parse_task_interpretation(
+                                response, self.intervention_type
+                            )
+
+                        if len(tasks) == 0:
+                            # this is a safety measure to prevent the LLM from getting stuck
+                            # with the same "faulty" strategy that is not parseable by the LLM-Mediator
+                            self.agent_interpreter.temperature += 0.01
+
+                        self.llm_mediator_last_response = response
 
             if len(tasks) > 0:
                 self.task_count += len(tasks)
@@ -315,11 +373,17 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
                 # send_string to Unity
                 message_to_agents += f"{agent_id}:"
 
+                current_task = self.agent_policy_state[agent_id]["tasks"][0]
+
                 # TASK: PICK WATER
-                if self.agent_policy_state[agent_id]["tasks"][0] == "water":
+                if current_task == "water":
                     self.task_pick_up_water(obs, agent_id, action_dict)
-                # TASK: GO TO LOCATION
+                # TASK: GO TO LOCATION (including NL "goto" and "scout" tasks)
+                elif isinstance(current_task, tuple):
+                    # Both ("goto", x, y), ("scout", x, y), and old grid (x, y) are tuples
+                    self.task_go_to_location(obs, agent_id, action_dict)
                 else:
+                    # Fallback for any other task format
                     self.task_go_to_location(obs, agent_id, action_dict)
 
                 infos[agent_id] = {following: action_dict[agent_id]}
@@ -536,9 +600,16 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
             self.agent_policy_state[agent_id]["tasks"].pop(0)
 
     def task_go_to_location(self, obs, agent_id, action_dict):
-        got_to_location = self.agent_policy_state[agent_id]["tasks"][0]
-        go_to_x = got_to_location[0]
-        go_to_y = got_to_location[1]
+        task = self.agent_policy_state[agent_id]["tasks"][0]
+
+        # Handle NL tasks with exact coordinates: ("goto", x, y) or ("scout", x, y)
+        if isinstance(task, tuple) and len(task) == 3:
+            task_type, go_to_x, go_to_y = task
+        else:
+            # Original grid-based format: (grid_x, grid_y)
+            go_to_x = task[0]
+            go_to_y = task[1]
+
         target = [go_to_x, go_to_y]
 
         action_to_go_to_target = self.get_action_to_go_to_target(obs, agent_id, target)
@@ -567,6 +638,22 @@ class AerialWildFireSuppressionEnv(MultiAgentEnv):
             else:
                 action_tuple = ActionTuple(discrete=np.array(actions))
         self.unity_env.set_actions(self.behavior_name, action_tuple)
+
+    def close(self):
+        """Shut down the Unity instance and release its port.
+
+        MultiAgentEnv.close() is a no-op, so without this the Unity process
+        outlives the Python object: it keeps holding its port, and the next
+        environment has to scan upward to find a free one.
+        """
+        unity_env = getattr(self, "unity_env", None)
+        if unity_env is not None:
+            try:
+                unity_env.close()
+            except Exception as exc:  # already dead, or never fully started
+                print(f"warning: Unity shutdown failed: {exc}")
+            finally:
+                self.unity_env = None
 
     def reset_agent_policy_state(self, agent_id):
         self.agent_policy_state[agent_id]["following"] = "NN"

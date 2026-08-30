@@ -10,6 +10,8 @@ from intervention.prompt_templates import (
     FEW_SHOT_EXAMPLE_PROMPT,
     HUMAN_INTERVENTION_PROMPT,
     NL_INTERVENTION_PROMPT,
+    NL_STRATEGY_PROMPT,
+    NL_TASK_PROMPT,
     SAMPLE_PROMPT,
     STRATEGY_PROMPT,
 )
@@ -89,32 +91,65 @@ class InterventionInterpreter(object):
         return prompt
 
     def llm_intervention(self):
+        """
+        Natural Language intervention with exact coordinates and flexible task types.
+        Agents can decide: go to location, pick up water, or scout.
+        """
+        agent_names = ", ".join([f"'{agent}'" for agent in self.AGENT_IDS])
+
+        # Build detailed agent info with exact coordinates
+        agents_detailed = self.get_detailed_agent_info()
+        fires_detailed = self.get_detailed_fire_info()
 
         ### STRATEGY ###
-        agent_names = (
-            ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS[:-1]])
-            + f" and Agent '{self.AGENT_IDS[-1]}'"
+        strategy_prompt = NL_STRATEGY_PROMPT.format(
+            AGENT_COUNT=len(self.AGENT_IDS),
+            AGENTS_DETAILED=agents_detailed,
+            FIRES_DETAILED=fires_detailed,
         )
 
-        intervention_prompt = STRATEGY_PROMPT.format(
-            AGENT_NAMES=agent_names,
-            AGENTS=self.all_agents_location_info,
-            FIRES=self.all_agents_fire_info,
-        )
+        strategy = self.llm_runner.run(strategy_prompt)
 
-        strategy = self.llm_runner.run(intervention_prompt)
-
-        ### INTERVENTION ###
-        agent_names = ", ".join([f"Agent '{agent}'" for agent in self.AGENT_IDS])
-
-        interpreter_prompt = NL_INTERVENTION_PROMPT.format(
+        ### TASK ASSIGNMENT ###
+        task_prompt = NL_TASK_PROMPT.format(
             AGENT_COUNT=len(self.AGENT_IDS),
             STRATEGY=strategy,
-            EXAMPLE="bottom right" if "Pharia" in self.llm_runner else "y x",
             AGENTS=agent_names,
         )
 
-        return interpreter_prompt
+        return task_prompt
+
+    def get_detailed_agent_info(self):
+        """Get detailed agent info with exact coordinates and water status."""
+        info_lines = []
+        for agent_id in self.AGENT_IDS:
+            if agent_id in self.all_agents_location:
+                x, y = self.all_agents_location[agent_id]
+                has_water = int(self.all_agents_holding_water.get(agent_id, 0)) == 1
+                water_status = "carrying water" if has_water else "no water"
+                info_lines.append(
+                    f"- {agent_id}: position ({x:.0f}, {y:.0f}), {water_status}"
+                )
+        return "\n".join(info_lines) if info_lines else "No agent data available"
+
+    def get_detailed_fire_info(self):
+        """Get detailed fire info with exact coordinates."""
+        if not self.all_agents_last_seen_fire:
+            return "No fires currently detected"
+
+        # Deduplicate fires by rounding to avoid reporting same fire multiple times
+        unique_fires = {}
+        for agent_id, (fx, fy) in self.all_agents_last_seen_fire.items():
+            # Round to nearest 50 units to deduplicate nearby fire reports
+            key = (round(fx / 50) * 50, round(fy / 50) * 50)
+            if key not in unique_fires:
+                unique_fires[key] = (fx, fy)
+
+        info_lines = []
+        for idx, (fx, fy) in enumerate(unique_fires.values()):
+            info_lines.append(f"- Fire {idx}: position ({fx:.0f}, {fy:.0f})")
+
+        return "\n".join(info_lines)
 
     def rule_based_intervention(self):
         prompt = SAMPLE_PROMPT.format(
@@ -125,6 +160,36 @@ class InterventionInterpreter(object):
             prompt = FEW_SHOT_EXAMPLE_PROMPT + prompt
 
         return prompt
+
+    def scripted_intervention(self, occupied_agent_ids=()):
+        """Rule-Based Controller with the LLM removed.
+
+        The Rule-Based directive is "instruct agent(s) to go to their closest
+        fire", and the mediator's output for it is a 3x3 grid cell per agent.
+        This computes that mapping directly -- nearest observed fire, then the
+        grid cell containing it -- so the only difference from the `auto`
+        pathway is whether a language model performs the mapping. It emits the
+        same task format, so the environment side is untouched.
+        """
+        tasks = {}
+        if not self.all_agents_last_seen_fire:
+            return tasks
+
+        fires = list(self.all_agents_last_seen_fire.values())
+        for agent_id in self.AGENT_IDS or []:
+            if agent_id in occupied_agent_ids:
+                continue
+            if agent_id not in self.all_agents_location:
+                continue
+            ax, ay = self.all_agents_location[agent_id]
+            fx, fy = min(
+                fires, key=lambda f: (f[0] - ax) ** 2 + (f[1] - ay) ** 2
+            )
+            index_x, index_y = self.get_grid_cell_from_position(fx, fy)
+            # _parse_grid_tasks emits index-1, i.e. -1/0/+1; match it exactly.
+            tasks[agent_id] = ((index_x - 1, index_y - 1), "auto")
+
+        return tasks
 
     def parse_task_interpretation(self, response, intervention_type):
         if intervention_type == "human":
@@ -152,13 +217,82 @@ class InterventionInterpreter(object):
                         if modified_value in response:
                             response = response.replace(modified_value, key)
 
-        response = response.split("\n")
+        # Handle NL intervention with exact coordinates and task types
+        if intervention_type == "llm":
+            return self._parse_nl_tasks(response)
 
+        # Original parsing for RB and human interventions
+        return self._parse_grid_tasks(response, intervention_type)
+
+    def _parse_nl_tasks(self, response):
+        """
+        Parse NL tasks with exact coordinates and task types.
+        Formats:
+        - <agent_name> goto <x> <y>
+        - <agent_name> water
+        - <agent_name> scout <x> <y>
+        """
+        response_lines = response.split("\n")
         agent_pattern = r"(Agent\?team=0_\d+)"
-
         tasks = {}
 
-        for index, agent_task in enumerate(response):
+        for line in response_lines:
+            if not line.strip():
+                continue
+
+            line = line.strip()
+
+            # Find agent ID
+            agent_match = re.search(agent_pattern, line)
+            if not agent_match:
+                continue
+            agent_id = agent_match.group(1)
+
+            # Determine task type and parse accordingly
+            line_lower = line.lower()
+
+            # Task: water (pick up water)
+            if (
+                " water" in line_lower
+                and "goto" not in line_lower
+                and "scout" not in line_lower
+            ):
+                tasks[agent_id] = ("water", "llm")
+                continue
+
+            # Task: goto <x> <y> or scout <x> <y>
+            # Extract coordinates - look for two numbers
+            numbers = re.findall(r"-?\d+\.?\d*", line)
+            if len(numbers) >= 2:
+                try:
+                    x = float(numbers[-2])  # Second to last number
+                    y = float(numbers[-1])  # Last number
+
+                    # Clamp to valid range
+                    x = max(-750, min(750, x))
+                    y = max(-750, min(750, y))
+
+                    # Normalize to -1 to 1 range for grid compatibility
+                    norm_x = x / 750.0
+                    norm_y = y / 750.0
+
+                    if "scout" in line_lower:
+                        tasks[agent_id] = (("scout", norm_x, norm_y), "llm")
+                    else:
+                        # Default to goto
+                        tasks[agent_id] = (("goto", norm_x, norm_y), "llm")
+                except (ValueError, IndexError):
+                    continue
+
+        return tasks
+
+    def _parse_grid_tasks(self, response, intervention_type):
+        """Original grid-based task parsing for RB and human interventions."""
+        response_lines = response.split("\n")
+        agent_pattern = r"(Agent\?team=0_\d+)"
+        tasks = {}
+
+        for index, agent_task in enumerate(response_lines):
             if agent_task == "":
                 continue
             agent_task = agent_task.strip()

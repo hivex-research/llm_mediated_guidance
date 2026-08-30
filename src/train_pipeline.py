@@ -146,7 +146,7 @@ def train_policy(experiment_config, config, args):
 
 if __name__ == "__main__":
 
-    agent_counts = [3]  # , 4, 5, 6]
+    agent_counts = [5, 6]  # 3
 
     experiment_config_dirs = [
         ### no intervention
@@ -154,11 +154,11 @@ if __name__ == "__main__":
         ### rule based controller
         # "src/configs/training_config_rule_based_llama_3.1_8b_instruct.yml",
         # "src/configs/training_config_rule_based_pharia_1_7b_control_aligned.yml",
-        "src/configs/training_config_rule_based_deepseek_r1.yml",
+        # "src/configs/training_config_rule_based_deepseek_r1.yml",
         ### natural language controller
         # "src/configs/training_config_natural_language_pharia_1_7b_control_aligned.yml",
         # "src/configs/training_config_natural_language_llama_3.1_8b_instruct.yml",
-        # "src/configs/training_config_natural_language_deepseek_r1.yml",
+        "src/configs/training_config_natural_language_deepseek_r1.yml",
         ### human intervention
         # "src/configs/training_config_human_intervention.yml",
     ]
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     try:
         for agent_count in agent_counts:
             for experiment_config_dir in experiment_config_dirs:
-                for i in range(7):
+                for i in range(9):
 
                     with open(experiment_config_dir, "r") as file:
                         experiment_config = yaml.safe_load(file)

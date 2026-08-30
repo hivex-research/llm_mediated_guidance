@@ -1,0 +1,16 @@
+name: "RB_DEEPSEEK_R1"
+env_parameters:
+  random_village_location: 0
+  agent_count: 3
+no_graphics: True
+intervention_type: "auto"
+model: "deepseek-r1"
+shot: "zero"
+
+lr: 0.005
+lambda_: 0.95
+gamma: 0.99
+sgd_minibatch_size: 512 # 900
+train_batch_size: 4800 # 9000 (16 workers × 300 × 1 rollouts)
+num_sgd_iter: 3
+clip_param: 0.2
